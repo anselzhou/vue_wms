@@ -1,177 +1,335 @@
 <template>
-  <div class="min-h-screen bg-zinc-950 p-8">
-    <div class="max-w-6xl mx-auto">
-      <!-- 标题 -->
-      <div class="mb-8 flex items-center justify-between">
-        <div>
-          <h1 class="text-3xl font-bold text-white flex items-center gap-3">
-            <Scan class="w-9 h-9 text-emerald-500" />
-            入库扫描
-          </h1>
-          <p class="text-zinc-400 mt-1">扫描或输入物料条码 → 自动入库</p>
+  <div class="inbound-container">
+    <el-card class="inbound-card" shadow="never">
+      <template #header>
+        <div class="card-header">
+          <h2 class="card-title">入库管理</h2>
+          <el-tag type="success" size="large">
+            当前物料数：{{ materialList.length }}
+          </el-tag>
         </div>
-        <button @click="clearTable"
-          class="flex items-center gap-2 px-5 py-3 bg-zinc-800 hover:bg-red-500/20 hover:text-red-400 rounded-2xl text-zinc-400 transition-colors">
-          <Trash2 class="w-5 h-5" />
+      </template>
+
+      <!-- 输入区域 -->
+      <div class="input-section">
+        <el-form :inline="true" @submit.prevent>
+          <el-form-item label="物料编码">
+            <el-input
+              v-model="materialCode"
+              placeholder="请输入物料编码，按回车添加"
+              size="large"
+              clearable
+              :prefix-icon="Search"
+              @keyup.enter="handleAddMaterial"
+            />
+          </el-form-item>
+
+          <el-form-item>
+            <el-button
+              type="primary"
+              size="large"
+              :icon="Plus"
+              @click="handleAddMaterial"
+            >
+              添加物料
+            </el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <!-- 物料列表表格 -->
+      <div class="table-section">
+        <el-table
+          :data="materialList"
+          stripe
+          style="width: 100%"
+          empty-text="暂无物料数据"
+          :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
+        >
+          <el-table-column type="index" label="序号" width="80" align="center" />
+
+          <el-table-column prop="materialCode" label="物料编码" min-width="150">
+            <template #default="{ row }">
+              <el-tag type="info">{{ row.materialCode }}</el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column prop="materialName" label="物料名称" min-width="180" />
+
+          <el-table-column prop="specification" label="规格型号" min-width="150" />
+
+          <el-table-column prop="unit" label="单位" width="100" align="center" />
+
+          <el-table-column prop="quantity" label="数量" width="120" align="center">
+            <template #default="{ row }">
+              <el-tag type="success" effect="plain">{{ row.quantity }}</el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" width="120" align="center" fixed="right">
+            <template #default="{ row, $index }">
+              <el-button
+                type="danger"
+                size="small"
+                :icon="Delete"
+                @click="handleDelete($index)"
+              >
+                删除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 操作按钮区域 -->
+      <div class="action-section">
+        <el-button
+          type="warning"
+          size="large"
+          :icon="Refresh"
+          @click="handleClear"
+          :disabled="materialList.length === 0"
+        >
           清空列表
-        </button>
+        </el-button>
+
+        <el-button
+          type="success"
+          size="large"
+          :icon="Check"
+          @click="handleSubmit"
+          :disabled="materialList.length === 0"
+          :loading="isSubmitting"
+        >
+          {{ isSubmitting ? '提交中...' : '提交入库' }}
+        </el-button>
       </div>
-
-      <!-- 输入框 -->
-      <div class="bg-zinc-900 border border-zinc-700 rounded-3xl p-8 mb-8">
-        <div class="relative">
-          <div class="absolute left-6 top-1/2 -translate-y-1/2 text-emerald-500">
-            <Barcode class="w-7 h-7" />
-          </div>
-          <input v-model="barcodeInput" @keyup.enter="handleScan" ref="barcodeRef" type="text"
-            placeholder="请扫描或输入物料条码..."
-            class="w-full bg-zinc-800 border border-zinc-700 focus:border-emerald-500 rounded-3xl py-6 pl-16 pr-8 text-2xl text-white placeholder-zinc-500 outline-none transition-all"
-            autofocus />
-        </div>
-        <p class="text-center text-zinc-500 text-sm mt-4">按 Enter 键确认</p>
-      </div>
-
-      <!-- 数据表格 -->
-      <div class="bg-zinc-900 border border-zinc-800 rounded-3xl overflow-hidden">
-        <div class="px-8 py-5 border-b border-zinc-800 flex items-center justify-between bg-zinc-950">
-          <div class="font-semibold text-white flex items-center gap-3">
-            已扫描入库
-            <span class="text-emerald-400 text-lg">{{ tableData.length }}</span>
-          </div>
-          <div class="text-sm text-zinc-400">共 {{ tableData.length }} 条记录</div>
-        </div>
-
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-zinc-950 sticky top-0">
-              <tr class="text-zinc-400 text-sm">
-                <th class="px-8 py-5 text-left">序号</th>
-                <th class="px-8 py-5 text-left">物料编码</th>
-                <th class="px-8 py-5 text-left">物料名称</th>
-                <th class="px-8 py-5 text-left">规格型号</th>
-                <th class="px-8 py-5 text-left">单位</th>
-                <th class="px-8 py-5 text-right">数量</th>
-                <th class="px-8 py-5 text-left">扫描时间</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-zinc-800 text-white">
-              <tr v-for="(item, index) in tableData" :key="index" class="hover:bg-zinc-800/50">
-                <td class="px-8 py-5">{{ index + 1 }}</td>
-                <td class="px-8 py-5 font-mono">{{ item.materialCode }}</td>
-                <td class="px-8 py-5">{{ item.materialName }}</td>
-                <td class="px-8 py-5 text-zinc-400">{{ item.spec || '-' }}</td>
-                <td class="px-8 py-5">{{ item.unit || '-' }}</td>
-                <td class="px-8 py-5 text-right font-medium">{{ item.quantity || 1 }}</td>
-                <td class="px-8 py-5 text-zinc-400 text-sm">{{ item.scanTime }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 空状态 -->
-        <div v-if="tableData.length === 0" class="h-80 flex flex-col items-center justify-center text-zinc-500">
-          <Scan class="w-20 h-20 mb-6 opacity-30" />
-          <p class="text-xl">暂无扫描记录</p>
-          <p class="text-sm mt-2">请在上方输入框扫描物料条码</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toast 提示 -->
-    <div v-if="toast.show" :class="toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'"
-      class="fixed bottom-8 left-1/2 -translate-x-1/2 px-8 py-4 rounded-2xl text-white shadow-2xl flex items-center gap-3 z-50 transition-all duration-300">
-      <CheckCircle v-if="toast.type === 'success'" class="w-6 h-6" />
-      <AlertCircle v-else class="w-6 h-6" />
-      <span class="text-lg">{{ toast.message }}</span>
-    </div>
+    </el-card>
   </div>
 </template>
 
-<script setup>
-import { ref, nextTick } from 'vue'
-import { Scan, Barcode, CheckCircle, AlertCircle, Trash2 } from 'lucide-vue-next'
+<script setup lang="ts">
+import { ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Plus, Delete, Refresh, Check } from '@element-plus/icons-vue'
 
-const barcodeInput = ref('')
-const barcodeRef = ref(null)
-const tableData = ref([])
+interface Material {
+  materialCode: string
+  materialName: string
+  specification: string
+  unit: string
+  quantity: number
+}
 
-const toast = ref({
-  show: false,
-  message: '',
-  type: 'success' // success / error
-})
+const materialCode = ref('')
+const materialList = ref<Material[]>([])
+const isSubmitting = ref(false)
 
-// 音频
-const successAudio = new Audio('/sounds/correct.mp3')
-const errorAudio = new Audio('/sounds/error.mp3')
+// 模拟物料数据库
+const mockMaterialDatabase: Record<string, Omit<Material, 'materialCode' | 'quantity'>> = {
+  'MAT001': {
+    materialName: '螺丝钉 M6',
+    specification: 'M6×20mm',
+    unit: '个'
+  },
+  'MAT002': {
+    materialName: '螺母 M6',
+    specification: 'M6',
+    unit: '个'
+  },
+  'MAT003': {
+    materialName: '垫片',
+    specification: 'Φ6×1.5mm',
+    unit: '片'
+  },
+  'MAT004': {
+    materialName: '轴承',
+    specification: '6204-2RS',
+    unit: '套'
+  },
+  'MAT005': {
+    materialName: '密封圈',
+    specification: 'O型 Φ50×3mm',
+    unit: '个'
+  }
+}
 
-// 模拟后端返回数据结构（请根据你实际接口调整）
-const handleScan = async () => {
-  const code = barcodeInput.value.trim()
-  if (!code) return
+// 添加物料
+const handleAddMaterial = () => {
+  const code = materialCode.value.trim()
 
-  try {
-    const res = await fetch('/getMaterialInfo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ materialCode: code })
-    })
-
-    const result = await res.json()
-
-    if (result.code === 200 && result.data) {
-      // 成功
-      const item = {
-        materialCode: result.data.materialCode || code,
-        materialName: result.data.materialName,
-        spec: result.data.spec,
-        unit: result.data.unit,
-        quantity: result.data.quantity || 1,
-        scanTime: new Date().toLocaleString('zh-CN')
-      }
-
-      tableData.value.unshift(item) // 新数据插入最上方
-
-      successAudio.currentTime = 0
-      successAudio.play().catch(() => { })
-
-      showToast('入库成功！', 'success')
-    } else {
-      // 未找到
-      errorAudio.currentTime = 0
-      errorAudio.play().catch(() => { })
-      showToast('未查询到产品信息，请检查条码是否正确！', 'error')
-    }
-  } catch (err) {
-    console.error(err)
-    errorAudio.play().catch(() => { })
-    showToast('请求失败，请检查网络或接口', 'error')
+  if (!code) {
+    ElMessage.warning('请输入物料编码')
+    return
   }
 
-  // 清空输入框并重新聚焦（方便连续扫描）
-  barcodeInput.value = ''
-  nextTick(() => {
-    barcodeRef.value?.focus()
+  // 检查是否已存在
+  const existsIndex = materialList.value.findIndex(item => item.materialCode === code)
+  if (existsIndex !== -1) {
+    ElMessage.warning(`物料 ${code} 已存在，数量 +1`)
+    materialList.value[existsIndex].quantity += 1
+    materialCode.value = ''
+    return
+  }
+
+  // 从模拟数据库中获取物料信息
+  const mockData = mockMaterialDatabase[code]
+
+  if (mockData) {
+    // 找到模拟数据
+    materialList.value.push({
+      materialCode: code,
+      ...mockData,
+      quantity: 1
+    })
+    ElMessage.success(`添加成功：${mockData.materialName}`)
+  } else {
+    // 未找到模拟数据，使用默认信息
+    materialList.value.push({
+      materialCode: code,
+      materialName: `物料 ${code}`,
+      specification: '标准规格',
+      unit: '个',
+      quantity: 1
+    })
+    ElMessage.success(`添加成功：未知物料 ${code}`)
+  }
+
+  // 清空输入框
+  materialCode.value = ''
+}
+
+// 删除物料
+const handleDelete = (index: number) => {
+  const material = materialList.value[index]
+
+  ElMessageBox.confirm(
+    `确定要删除物料 "${material.materialCode}" 吗？`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    materialList.value.splice(index, 1)
+    ElMessage.success('删除成功')
+  }).catch(() => {
+    // 用户取消
   })
 }
 
-// Toast 提示
-const showToast = (msg, type) => {
-  toast.value = { show: true, message: msg, type }
-  setTimeout(() => {
-    toast.value.show = false
-  }, 2800)
+// 清空列表
+const handleClear = () => {
+  ElMessageBox.confirm(
+    '确定要清空所有物料吗？',
+    '警告',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    materialList.value = []
+    ElMessage.success('已清空列表')
+  }).catch(() => {
+    // 用户取消
+  })
 }
 
-// 清空表格
-const clearTable = () => {
-  if (confirm('确定要清空所有入库记录吗？')) {
-    tableData.value = []
+// 提交入库
+const handleSubmit = async () => {
+  if (materialList.value.length === 0) {
+    ElMessage.warning('请先添加物料')
+    return
+  }
+
+  try {
+    isSubmitting.value = true
+
+    // 模拟 API 调用
+    await new Promise(resolve => setTimeout(resolve, 1500))
+
+    // 模拟提交的数据
+    const submitData = {
+      inboundTime: new Date().toISOString(),
+      materials: materialList.value,
+      totalQuantity: materialList.value.reduce((sum, item) => sum + item.quantity, 0)
+    }
+
+    console.log('提交的入库数据:', submitData)
+
+    // 显示成功消息
+    ElMessage.success({
+      message: `入库成功！共 ${materialList.value.length} 种物料，总计 ${submitData.totalQuantity} 件`,
+      duration: 3000
+    })
+
+    // 清空列表
+    materialList.value = []
+    materialCode.value = ''
+
+  } catch (error) {
+    ElMessage.error('入库失败，请稍后重试')
+    console.error('入库错误:', error)
+  } finally {
+    isSubmitting.value = false
   }
 }
-
-// 页面加载后自动聚焦输入框
-onMounted(() => {
-  nextTick(() => barcodeRef.value?.focus())
-})
 </script>
+
+<style scoped>
+.inbound-container {
+  padding: 20px;
+}
+
+.inbound-card {
+  border-radius: 12px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1d1b20;
+}
+
+.input-section {
+  padding: 20px 0;
+  border-bottom: 1px solid #e6e0e9;
+}
+
+.table-section {
+  margin: 20px 0;
+  min-height: 300px;
+}
+
+.action-section {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  padding-top: 20px;
+  border-top: 1px solid #e6e0e9;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .inbound-container {
+    padding: 12px;
+  }
+
+  .action-section {
+    flex-direction: column;
+  }
+
+  .action-section .el-button {
+    width: 100%;
+  }
+}
+</style>

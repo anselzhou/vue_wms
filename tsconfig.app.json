@@ -1,15 +1,17 @@
 {
-   "extends": "@vue/tsconfig/tsconfig.dom.json",
-   "compilerOptions": {
-     "baseUrl": ".",
-     "paths": {
-       "@/*": ["src/*"]
-     },
-     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-     "types": ["vite/client"],
-     "noUnusedLocals": true,
-     "noUnusedParameters": true,
-     "noFallthroughCasesInSwitch": true
-   },
-   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
- }
+  "extends": "@vue/tsconfig/tsconfig.dom.json",
+  "compilerOptions": {
+    // ... 其他配置保留 ...
+    "baseUrl": ".",   // 加上这一行
+    "paths": {        // 加上这一段
+      "@/*": ["src/*"]
+    },
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "types": ["vite/client"],
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "lib": ["ES2017", "DOM", "DOM.Iterable"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"]
+}

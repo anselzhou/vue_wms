@@ -1,9 +1,13 @@
-<script lang="ts">
+<script setup lang="ts">
 // code...
 </script>
 
 <template>
-	<!-- code... -->
+  <div>
+    <h1 class="w-full mr-8 text-4xl underline">
+      welcome to proquery
+    </h1>
+  </div>
 </template>
 
 <style scoped>
