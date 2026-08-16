@@ -1,0 +1,84 @@
+/* 主题 token —— 通过 html[data-theme] 切换 */
+
+:root,
+html[data-theme='violet'] {
+  --wms-primary: #6750a4;
+  --wms-primary-hover: #7c67b5;
+  --wms-primary-active: #5a4394;
+  --wms-primary-soft: #958da5;
+  --wms-primary-bg: #f5f0ff;
+  --wms-primary-bg-active: #f0ebff;
+  --wms-on-primary: #ffffff;
+
+  --wms-text: #1d1b20;
+  --wms-text-secondary: #49454f;
+  --wms-text-muted: #79747e;
+  --wms-border: #e6e0e9;
+  --wms-surface: #ffffff;
+  --wms-page-bg: #f5f7fa;
+  --wms-hover-bg: #f5f7fa;
+
+  --wms-logo-from: #6750a4;
+  --wms-logo-to: #958da5;
+  --wms-radius: 12px;
+
+  /* Element Plus primary */
+  --el-color-primary: #6750a4;
+  --el-color-primary-light-3: #8b7ab8;
+  --el-color-primary-light-5: #a89bc8;
+  --el-color-primary-light-7: #c5bcd9;
+  --el-color-primary-light-8: #d4cde3;
+  --el-color-primary-light-9: #e8e3f0;
+  --el-color-primary-dark-2: #524083;
+}
+
+html[data-theme='blue'] {
+  /* Primary Blue — 清爽企业蓝 */
+  --wms-primary: #1677ff;
+  --wms-primary-hover: #4096ff;
+  --wms-primary-active: #0958d9;
+  --wms-primary-soft: #69b1ff;
+  --wms-primary-bg: #e6f4ff;
+  --wms-primary-bg-active: #bae0ff;
+  --wms-on-primary: #ffffff;
+
+  --wms-text: #1f2937;
+  --wms-text-secondary: #4b5563;
+  --wms-text-muted: #6b7280;
+  --wms-border: #e5eaf3;
+  --wms-surface: #ffffff;
+  --wms-page-bg: #f0f5ff;
+  --wms-hover-bg: #f5f8fc;
+
+  --wms-logo-from: #1677ff;
+  --wms-logo-to: #69b1ff;
+  --wms-radius: 10px;
+
+  --el-color-primary: #1677ff;
+  --el-color-primary-light-3: #69b1ff;
+  --el-color-primary-light-5: #91caff;
+  --el-color-primary-light-7: #bae0ff;
+  --el-color-primary-light-8: #d6e4ff;
+  --el-color-primary-light-9: #e6f4ff;
+  --el-color-primary-dark-2: #0958d9;
+}
+
+/* 通用形状 / 阴影 token（与主题色无关） */
+:root {
+  --wms-radius-sm: 8px;
+  --wms-radius-lg: 28px;
+  --wms-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --wms-shadow-card: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+/* 全局基础色跟随主题 */
+html {
+  color: var(--wms-text);
+  background-color: var(--wms-page-bg);
+}
+
+body {
+  margin: 0;
+  background-color: var(--wms-page-bg);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}

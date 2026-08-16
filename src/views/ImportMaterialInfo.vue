@@ -81,19 +81,19 @@
           stripe
           style="width: 100%"
           max-height="500"
-          :header-cell-style="{ background: '#f5f7fa', color: '#606266' }"
+          :header-cell-style="{ background: 'var(--el-fill-color-light)', color: 'var(--wms-text-secondary)' }"
         >
           <el-table-column type="index" label="序号" width="80" align="center" />
 
-          <el-table-column prop="materialCode" label="物料编码" min-width="120">
+          <el-table-column prop="material" label="物料编码" min-width="120">
             <template #default="{ row }">
               <el-tag :type="row.status === 'error' ? 'danger' : 'info'">
-                {{ row.materialCode }}
+                {{ row.material }}
               </el-tag>
             </template>
           </el-table-column>
 
-          <el-table-column prop="eanCode" label="EAN码" min-width="140" />
+          <el-table-column prop="ean" label="EAN码" min-width="140" />
 
           <el-table-column prop="brand" label="品牌" min-width="120" />
 
@@ -102,6 +102,8 @@
           <el-table-column prop="color" label="颜色" width="100" />
 
           <el-table-column prop="size" label="尺寸" width="100" />
+
+          <el-table-column prop="season" label="季节" width="100" />
 
           <el-table-column prop="description" label="描述" min-width="150" show-overflow-tooltip />
 
@@ -165,12 +167,12 @@
             </el-statistic>
           </el-col>
           <el-col :xs="24" :sm="8">
-            <el-statistic title="正确数据" :value="successCount" value-style="color: #67c23a">
+            <el-statistic title="正确数据" :value="successCount" value-style="color: var(--el-color-success)">
               <template #suffix>条</template>
             </el-statistic>
           </el-col>
           <el-col :xs="24" :sm="8">
-            <el-statistic title="错误数据" :value="errorCount" value-style="color: #f56c6c">
+            <el-statistic title="错误数据" :value="errorCount" value-style="color: var(--el-color-danger)">
               <template #suffix>条</template>
             </el-statistic>
           </el-col>
@@ -193,12 +195,13 @@ import {
 import ExcelImporter from '@/utils/ExcelImporter'
 
 interface MaterialData {
-  materialCode: string
-  eanCode?: string
+  material: string
+  ean?: string
   brand: string
   category?: string
   color?: string
   size?: string
+  season?: string
   description?: string
   price: number
   rowNum?: number
@@ -214,19 +217,20 @@ const isDragOver = ref(false)
 
 // 预期表头
 const HEADERS = [
-  'materialCode',
-  'eanCode',
+  'material',
+  'ean',
   'brand',
   'category',
   'color',
   'size',
+  'season',
   'description',
   'price'
 ]
 
 // 校验规则
 const VALIDATION_RULES = [
-  { field: 'materialCode', required: true, message: '物料编码不能为空' },
+  { field: 'material', required: true, message: '物料编码不能为空' },
   { field: 'brand', required: true, message: '品牌不能为空' },
   {
     field: 'price',
@@ -235,7 +239,7 @@ const VALIDATION_RULES = [
     message: '价格必须是数字'
   },
   {
-    field: 'eanCode',
+    field: 'ean',
     validator: (value: any) => !value || value.toString().length === 13,
     message: 'EAN码必须是13位'
   }
@@ -320,7 +324,7 @@ const processFile = async (file: File) => {
     // 数据校验
     const validatedData = ExcelImporter.validateData(result.data, VALIDATION_RULES)
 
-    previewData.value = validatedData as MaterialData[]
+    previewData.value = validatedData as unknown as MaterialData[]
 
     ElMessage.success(`成功解析 ${result.rowCount} 条数据`)
   } catch (error) {
@@ -403,22 +407,24 @@ const handleSubmit = async () => {
 const downloadTemplate = () => {
   const templateData = [
     {
-      materialCode: 'MAT001',
-      eanCode: '6901028089888',
+      material: 'MAT001',
+      ean: '6901028089888',
       brand: '示例品牌',
       category: '电子产品',
       color: '红色',
       size: 'L',
+      season: '夏季',
       description: '这是一个示例物料',
       price: 99.99
     },
     {
-      materialCode: 'MAT002',
-      eanCode: '6901028089889',
+      material: 'MAT002',
+      ean: '6901028089889',
       brand: '测试品牌',
       category: '办公用品',
       color: '蓝色',
       size: 'M',
+      season: '冬季',
       description: '测试物料描述',
       price: 49.99
     }
@@ -450,7 +456,7 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .import-card {
-  border-radius: 12px;
+  border-radius: var(--wms-radius);
 }
 
 .card-header {
@@ -463,24 +469,24 @@ const formatFileSize = (bytes: number): string => {
   margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #1d1b20;
+  color: var(--wms-text);
 }
 
 /* 上传区域 */
 .upload-area {
-  border: 2px dashed #dcdfe6;
-  border-radius: 12px;
+  border: 2px dashed var(--el-border-color);
+  border-radius: var(--wms-radius);
   padding: 60px 20px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  background-color: #fafafa;
+  background-color: var(--el-fill-color-lighter);
 }
 
 .upload-area:hover,
 .upload-area.is-dragover {
-  border-color: #6750a4;
-  background-color: #f5f0ff;
+  border-color: var(--wms-primary);
+  background-color: var(--wms-primary-bg);
 }
 
 .file-input {
@@ -492,19 +498,19 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .upload-icon {
-  color: #6750a4;
+  color: var(--wms-primary);
   margin-bottom: 16px;
 }
 
 .upload-text {
   font-size: 16px;
-  color: #606266;
+  color: var(--wms-text-secondary);
   margin: 12px 0;
 }
 
 .upload-hint {
   font-size: 14px;
-  color: #909399;
+  color: var(--el-text-color-secondary);
   margin: 8px 0 0;
 }
 
@@ -531,7 +537,7 @@ const formatFileSize = (bytes: number): string => {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 2px solid #e6e0e9;
+  border-bottom: 2px solid var(--wms-border);
 }
 
 .preview-title {
@@ -540,22 +546,22 @@ const formatFileSize = (bytes: number): string => {
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: #1d1b20;
+  color: var(--wms-text);
   margin: 0;
 }
 
 .price-text {
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-weight: 600;
 }
 
 .error-text {
-  color: #f56c6c;
+  color: var(--el-color-danger);
   font-size: 13px;
 }
 
 .success-text {
-  color: #67c23a;
+  color: var(--el-color-success);
   font-weight: bold;
 }
 
@@ -566,15 +572,15 @@ const formatFileSize = (bytes: number): string => {
   gap: 16px;
   margin-top: 24px;
   padding-top: 20px;
-  border-top: 1px solid #e6e0e9;
+  border-top: 1px solid var(--wms-border);
 }
 
 /* 统计区域 */
 .statistics-section {
   margin-top: 24px;
   padding: 20px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
-  border-radius: 8px;
+  background: linear-gradient(135deg, var(--el-fill-color-light) 0%, var(--wms-surface) 100%);
+  border-radius: var(--wms-radius-sm);
 }
 
 /* 响应式设计 */

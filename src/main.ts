@@ -5,6 +5,9 @@ import App from './App.vue';
 import router from './router';
 import './style.css';
 import ElementPlus from 'element-plus'
+import { initTheme } from './composables/useTheme'
+
+initTheme()
 
 const app = createApp(App);
 

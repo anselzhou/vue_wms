@@ -1,15 +1,25 @@
-<script setup lang="ts">
-// code...
-</script>
-
 <template>
-  <div>
-    <h1 class="w-full mr-8 text-4xl underline">
-      welcome to dashboard
-    </h1>
+  <div style="display: flex; gap: 16px; align-items: center;">
+    <!-- 基础用法 -->
+    <ToggleLockButton v-model="isUnlocked" />
+
+    <!-- 自定义文字 -->
+    <ToggleLockButton
+        v-model="isUnlocked2"
+        inactive-text=""
+        active-text=""
+    />
+
+    <!-- 小尺寸 -->
+    <ToggleLockButton v-model="isUnlocked3" size="small" />
   </div>
 </template>
 
-<style scoped>
-/* code... */
-</style>
+<script setup>
+import { ref } from 'vue'
+import ToggleLockButton from '@/components/ToggleLockButton.vue'
+
+const isUnlocked = ref(false)
+const isUnlocked2 = ref(false)
+const isUnlocked3 = ref(true)
+</script>

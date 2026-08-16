@@ -23,14 +23,18 @@
           :model="loginForm"
           :rules="loginRules"
           class="login-form"
+          status-icon
+          scroll-to-error
+          inline-message
+          hide-required-asterisk
+          aria-label="登录表单"
           @submit.prevent="handleLogin"
-          @keyup.enter="handleLogin"
         >
           <!-- 用户名输入框 -->
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
-              placeholder="请输入邮箱或用户名"
+              placeholder="请输入用户名（5-16位）"
               size="large"
               :prefix-icon="User"
               clearable
@@ -43,7 +47,7 @@
             <el-input
               v-model="loginForm.password"
               :type="showPassword ? 'text' : 'password'"
-              placeholder="请输入密码"
+              placeholder="请输入密码（5-16位）"
               size="large"
               :prefix-icon="Lock"
               autocomplete="current-password"
@@ -63,8 +67,8 @@
           <!-- 记住我和忘记密码 -->
           <el-form-item>
             <div class="form-options">
-              <el-checkbox v-model="loginForm.rememberMe" label="记住我" />
-              <el-link type="primary" :underline="false">忘记密码？</el-link>
+              <el-checkbox v-model="loginForm.rememberMe" label="记住用户名" />
+              <el-link type="primary" underline="hover" @click="handleForgotPassword">忘记密码？</el-link>
             </div>
           </el-form-item>
 
@@ -75,7 +79,7 @@
               size="large"
               class="login-button"
               :loading="isLoading"
-              @click="handleLogin"
+              native-type="submit"
             >
               {{ isLoading ? '登录中...' : '立即登录' }}
             </el-button>
@@ -99,10 +103,11 @@
 
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { User, Lock, View, Hide, Box } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
+import { login, getUserInfo } from '@/api/user'
 
 interface LoginForm {
   username: string
@@ -111,6 +116,7 @@ interface LoginForm {
 }
 
 const router = useRouter()
+const route = useRoute()
 const loginFormRef = ref<FormInstance>()
 const isLoading = ref(false)
 const showPassword = ref(false)
@@ -121,15 +127,16 @@ const loginForm = reactive<LoginForm>({
   rememberMe: false
 })
 
-// 表单验证规则
 const loginRules = reactive<FormRules<LoginForm>>({
   username: [
-    { required: true, message: '请输入用户名或邮箱', trigger: 'blur' },
-    { min: 2, max: 50, message: '用户名长度在 2 到 50 个字符', trigger: 'blur' }
+    { required: true, message: '请输入用户名', trigger: 'blur' },
+    { min: 5, max: 16, message: '用户名长度在 5 到 16 个字符', trigger: 'blur' },
+    { pattern: /^\S{5,16}$/, message: '用户名不能包含空格', trigger: 'blur' }
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+    { min: 5, max: 16, message: '密码长度在 5 到 16 个字符', trigger: 'blur' },
+    { pattern: /^\S{5,16}$/, message: '密码不能包含空格', trigger: 'blur' }
   ]
 })
 
@@ -140,56 +147,105 @@ const togglePasswordVisibility = () => {
 const handleLogin = async () => {
   if (!loginFormRef.value) return
 
+  // Step 1: Validate form fields first — keep this separate from API errors
+  // so validation failures don't show a misleading "登录失败" message.
   try {
     await loginFormRef.value.validate()
+  } catch {
+    // Element Plus form validation already displays per-field error messages;
+    // no additional toast is needed.
+    return
+  }
 
-    isLoading.value = true
-
-    // TODO: 实际的登录 API 调用
-    // const response = await loginApi(loginForm)
-
-    // 模拟登录成功 - 设置 token
-    const mockToken = 'mock-token-' + Date.now()
-    localStorage.setItem('token', mockToken)
-
-    // 模拟用户信息
-    localStorage.setItem('userInfo', JSON.stringify({
+  isLoading.value = true
+  try {
+    const response = await login({
       username: loginForm.username,
-      id: 'user-' + Date.now()
-    }))
+      password: loginForm.password
+    })
 
-    console.log('登录信息:', { ...loginForm, password: '***' })
+    if (!response.data?.token) {
+      ElMessage.error('登录失败，服务器未返回token')
+      return
+    }
+
+    const token: string = response.data.token
+    localStorage.setItem('token', token)
+
+    try {
+      const userInfoResponse = await getUserInfo()
+      if (userInfoResponse.data) {
+        localStorage.setItem('userInfo', JSON.stringify(userInfoResponse.data))
+      }
+    } catch {
+      // If userInfo fetch fails, roll back the token so the user
+      // isn't left in a half-authenticated state.
+      localStorage.removeItem('token')
+      localStorage.removeItem('userInfo')
+      ElMessage.error('获取用户信息失败，请重新登录')
+      return
+    }
+
+    if (loginForm.rememberMe) {
+      localStorage.setItem('rememberMe', 'true')
+      localStorage.setItem('savedUsername', loginForm.username)
+    } else {
+      localStorage.removeItem('rememberMe')
+      localStorage.removeItem('savedUsername')
+    }
 
     ElMessage.success('登录成功')
 
-    // 登录成功后跳转到首页
-    await router.push('/dashboard')
-
-    // 如果不选择"记住我"，则清除密码
-    if (!loginForm.rememberMe) {
-      loginForm.password = ''
-    }
-  } catch (error) {
-    if (error instanceof Error) {
-      ElMessage.error(error.message || '登录失败，请检查用户名和密码')
-    } else {
-      ElMessage.error('登录失败，请检查用户名和密码')
+    const redirect = (route.query.redirect as string) || '/dashboard'
+    await router.push(redirect)
+  } catch (error: any) {
+    // Only API / network errors reach this block now.
+    // Status-specific messages (e.g. 401) are already shown by the
+    // Axios response interceptor, so we only show a generic fallback.
+    const httpStatus = error?.response?.status
+    if (!httpStatus) {
+      // Network error or timeout — interceptor already shows a message,
+      // but we add context here.
+      if (error?.code === 'ECONNABORTED') {
+        ElMessage.error('请求超时，请检查网络连接')
+      } else if (!error?.response) {
+        ElMessage.error('网络错误，请检查网络连接')
+      } else {
+        ElMessage.error('登录失败，请检查用户名和密码')
+      }
     }
   } finally {
     isLoading.value = false
   }
 }
+
+const handleForgotPassword = () => {
+  ElMessage.info('请联系管理员重置密码')
+}
+
+const loadSavedCredentials = () => {
+  const rememberMe = localStorage.getItem('rememberMe')
+  const savedUsername = localStorage.getItem('savedUsername')
+
+  if (rememberMe === 'true' && savedUsername) {
+    loginForm.username = savedUsername
+    loginForm.rememberMe = true
+  }
+}
+
+loadSavedCredentials()
 </script>
 
 <style scoped>
 /* Material Design 3 颜色系统 */
 .login-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #6750a4 0%, #958da5 100%);
+  background: linear-gradient(135deg, var(--wms-logo-from) 0%, var(--wms-logo-to) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  transition: background 0.25s ease;
 }
 
 .login-card-wrapper {
@@ -201,11 +257,11 @@ const handleLogin = async () => {
 .brand-section {
   text-align: center;
   margin-bottom: 32px;
-  color: white;
+  color: var(--wms-on-primary);
 }
 
 .brand-icon {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--wms-on-primary) 20%, transparent);
   border-radius: 24px;
   padding: 16px;
   margin-bottom: 16px;
@@ -227,10 +283,10 @@ const handleLogin = async () => {
 
 /* 登录卡片 - Material Design 3 风格 */
 .login-card {
-  background: #fffbfe;
-  border-radius: 28px;
+  background: var(--wms-surface);
+  border-radius: var(--wms-radius-lg);
   border: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: var(--wms-shadow-card);
   overflow: hidden;
 }
 
@@ -249,7 +305,7 @@ const handleLogin = async () => {
 .card-title {
   font-size: 24px;
   font-weight: 600;
-  color: #1d1b20;
+  color: var(--wms-text);
 }
 
 .login-card :deep(.el-card__body) {
@@ -266,29 +322,29 @@ const handleLogin = async () => {
 }
 
 .login-form :deep(.el-input__wrapper) {
-  border-radius: 12px;
+  border-radius: var(--wms-radius);
   padding: 12px 16px;
   box-shadow: none;
-  border: 1px solid #e6e0e9;
+  border: 1px solid var(--wms-border);
   transition: all 0.2s ease;
 }
 
 .login-form :deep(.el-input__wrapper:hover) {
-  border-color: #79747e;
+  border-color: var(--wms-text-secondary);
 }
 
 .login-form :deep(.el-input__wrapper.is-focus) {
-  border-color: #6750a4;
-  box-shadow: 0 0 0 2px rgba(103, 80, 164, 0.1);
+  border-color: var(--wms-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--wms-primary) 15%, transparent);
 }
 
 .login-form :deep(.el-input__inner) {
   font-size: 16px;
-  color: #1d1b20;
+  color: var(--wms-text);
 }
 
 .login-form :deep(.el-input__inner::placeholder) {
-  color: #79747e;
+  color: var(--wms-text-muted);
 }
 
 /* 表单选项 */
@@ -300,40 +356,40 @@ const handleLogin = async () => {
 }
 
 .form-options :deep(.el-checkbox__label) {
-  color: #49454f;
+  color: var(--wms-text-secondary);
   font-size: 14px;
 }
 
 .form-options :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
-  background-color: #6750a4;
-  border-color: #6750a4;
+  background-color: var(--wms-primary);
+  border-color: var(--wms-primary);
 }
 
-/* 登录按钮 - Material Design 3 风格 */
+/* 登录按钮 */
 .login-button {
   width: 100%;
   height: 56px;
-  border-radius: 12px;
+  border-radius: var(--wms-radius);
   font-size: 16px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  background: #6750a4;
+  background: var(--wms-primary);
   border: none;
   transition: all 0.2s ease;
 }
 
 .login-button:hover {
-  background: #7f67be;
-  box-shadow: 0 4px 12px rgba(103, 80, 164, 0.3);
+  background: var(--wms-primary-hover);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--wms-primary) 30%, transparent);
 }
 
 .login-button:active {
-  background: #625b71;
+  background: var(--wms-primary-active);
 }
 
 .login-button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(103, 80, 164, 0.2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wms-primary) 20%, transparent);
 }
 
 /* 注册链接 */
@@ -341,16 +397,16 @@ const handleLogin = async () => {
   text-align: center;
   margin-top: 24px;
   padding-top: 24px;
-  border-top: 1px solid #e6e0e9;
+  border-top: 1px solid var(--wms-border);
 }
 
 .text-secondary {
-  color: #49454f;
+  color: var(--wms-text-secondary);
   font-size: 14px;
 }
 
 .primary-link {
-  color: #6750a4;
+  color: var(--wms-primary);
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
@@ -359,13 +415,13 @@ const handleLogin = async () => {
 }
 
 .primary-link:hover {
-  color: #7f67be;
+  color: var(--wms-primary-hover);
 }
 
 /* 版权信息 */
 .copyright {
   text-align: center;
-  color: rgba(255, 255, 255, 0.8);
+  color: color-mix(in srgb, var(--wms-on-primary) 80%, transparent);
   font-size: 14px;
   margin-top: 24px;
 }
@@ -397,35 +453,4 @@ const handleLogin = async () => {
   }
 }
 
-/* 暗色模式支持 */
-@media (prefers-color-scheme: dark) {
-  .login-card {
-    background: #1c1b1f;
-  }
-
-  .card-title {
-    color: #e6e1e5;
-  }
-
-  .login-form :deep(.el-input__wrapper) {
-    border-color: #49454f;
-    background: #2b2930;
-  }
-
-  .login-form :deep(.el-input__inner) {
-    color: #e6e1e5;
-  }
-
-  .text-secondary {
-    color: #cac4d0;
-  }
-
-  .register-link {
-    border-top-color: #49454f;
-  }
-
-  .form-options :deep(.el-checkbox__label) {
-    color: #cac4d0;
-  }
-}
 </style>

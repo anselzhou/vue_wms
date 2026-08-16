@@ -14,9 +14,14 @@
       <div class="content-wrapper">
         <router-view v-slot="{ Component, route }">
           <transition name="fade-transform" mode="out-in">
-            <keep-alive>
-              <component :is="Component" :key="route.path" />
-            </keep-alive>
+            <!--
+              用一级路由 name 作 key（如 Warehouse / Inventory），
+              避免按叶子 path 缓存 ParentView 导致嵌套 router-view 失效
+            -->
+            <component
+              :is="Component"
+              :key="route.matched[1]?.name ?? route.path"
+            />
           </transition>
         </router-view>
       </div>
@@ -68,7 +73,8 @@ onUnmounted(() => {
 <style scoped>
 .layout-container {
   min-height: 100vh;
-  background-color: #f5f7fa;
+  background-color: var(--wms-page-bg);
+  transition: background-color 0.25s ease;
 }
 
 /* 主内容区域 */
@@ -150,6 +156,6 @@ onUnmounted(() => {
 }
 
 .main-content::-webkit-scrollbar-track {
-  background-color: #f5f7fa;
+  background-color: var(--wms-page-bg);
 }
 </style>

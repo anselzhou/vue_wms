@@ -5,59 +5,50 @@
         :default-active="activeMenu"
         :router="true"
         mode="vertical"
-        background-color="#ffffff"
-        text-color="#49454f"
-        active-text-color="#6750a4"
         :collapse="isCollapsed"
         :unique-opened="true"
         :collapse-transition="false"
         class="sidebar-menu"
       >
-        <template v-for="route in menuRoutes" :key="route.path">
-          <!-- 有子菜单 -->
+        <template v-for="item in menuRoutes" :key="item.path">
           <el-sub-menu
-            v-if="shouldShowSubMenu(route)"
-            :index="route.path"
+            v-if="shouldShowSubMenu(item)"
+            :index="item.path"
           >
             <template #title>
-              <el-icon v-if="route.meta?.icon && typeof route.meta.icon === 'string'">
-                <component :is="getIconComponent(route.meta.icon)" />
+              <el-icon v-if="item.meta?.icon">
+                <component :is="getIconComponent(item.meta.icon)" />
               </el-icon>
-              <span>{{ route.meta?.title }}</span>
+              <span>{{ item.meta?.title }}</span>
             </template>
 
             <el-menu-item
-              v-for="child in getVisibleChildren(route)"
+              v-for="child in getVisibleChildren(item)"
               :key="child.path"
-              :index="resolveChildPath(route.path, child.path)"
+              :index="resolveChildPath(item.path, child.path)"
             >
-              <el-icon v-if="child.meta?.icon && typeof child.meta.icon === 'string'">
+              <el-icon v-if="child.meta?.icon">
                 <component :is="getIconComponent(child.meta.icon)" />
               </el-icon>
               <template #title>{{ child.meta?.title }}</template>
             </el-menu-item>
           </el-sub-menu>
 
-          <!-- 无子菜单的单一路由 -->
           <el-menu-item
-            v-else-if="hasSingleVisibleChild(route)"
-            :index="resolveChildPath(route.path, route.children![0].path)"
+            v-else-if="hasSingleVisibleChild(item)"
+            :index="resolveChildPath(item.path, item.children![0].path)"
           >
-            <el-icon v-if="route.meta?.icon && typeof route.meta.icon === 'string'">
-              <component :is="getIconComponent(route.meta.icon)" />
+            <el-icon v-if="item.meta?.icon || item.children![0].meta?.icon">
+              <component :is="getIconComponent((item.meta?.icon || item.children![0].meta?.icon)!)" />
             </el-icon>
-            <template #title>{{ route.children![0].meta?.title }}</template>
+            <template #title>{{ item.meta?.title }}</template>
           </el-menu-item>
 
-          <!-- 直接显示的路由（没有子菜单） -->
-          <el-menu-item
-            v-else-if="!route.children || route.children.length === 0"
-            :index="route.path"
-          >
-            <el-icon v-if="route.meta?.icon && typeof route.meta.icon === 'string'">
-              <component :is="getIconComponent(route.meta.icon)" />
+          <el-menu-item v-else :index="item.path">
+            <el-icon v-if="item.meta?.icon">
+              <component :is="getIconComponent(item.meta.icon)" />
             </el-icon>
-            <template #title>{{ route.meta?.title }}</template>
+            <template #title>{{ item.meta?.title }}</template>
           </el-menu-item>
         </template>
       </el-menu>
@@ -67,10 +58,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
+import { constantRoutes } from '@/router/routes'
 
 interface Props {
   isCollapsed: boolean
@@ -79,77 +71,39 @@ interface Props {
 defineProps<Props>()
 
 const route = useRoute()
-const router = useRouter()
 
-// 当前激活的菜单
-const activeMenu = computed(() => {
-  return route.path
-})
+const activeMenu = computed(() => route.path)
 
-// 获取可见的子路由（排除隐藏的）
-const getVisibleChildren = (route: RouteRecordRaw): RouteRecordRaw[] => {
-  if (!route.children) return []
-  return route.children.filter(child => !child.meta?.hidden)
-}
+const getVisibleChildren = (r: RouteRecordRaw): RouteRecordRaw[] =>
+  (r.children ?? []).filter((child) => !child.meta?.hidden)
 
-// 判断是否应该显示子菜单
-const shouldShowSubMenu = (route: RouteRecordRaw): boolean => {
-  if (!route.children || route.children.length === 0) {
-    return false
-  }
-  const visibleChildren = getVisibleChildren(route)
-  return visibleChildren.length > 1
-}
+const shouldShowSubMenu = (r: RouteRecordRaw): boolean =>
+  getVisibleChildren(r).length > 1
 
-// 判断是否只有一个可见子项
-const hasSingleVisibleChild = (route: RouteRecordRaw): boolean => {
-  if (!route.children || route.children.length === 0) {
-    return false
-  }
-  const visibleChildren = getVisibleChildren(route)
-  return visibleChildren.length === 1
-}
+const hasSingleVisibleChild = (r: RouteRecordRaw): boolean =>
+  getVisibleChildren(r).length === 1
 
-// 解析子路由路径（处理相对路径）
+const toAbsolutePath = (path: string): string =>
+  path.startsWith('/') ? path : `/${path}`
+
 const resolveChildPath = (parentPath: string, childPath: string): string => {
-  // 如果子路径已经是绝对路径，直接返回
-  if (childPath.startsWith('/')) {
-    return childPath
-  }
-  // 否则拼接父路径和子路径
-  return `${parentPath}/${childPath}`.replace(/\/+/g, '/').replace(/\/$/, '')
+  if (childPath.startsWith('/')) return childPath
+  return `${toAbsolutePath(parentPath)}/${childPath}`.replace(/\/+/g, '/')
 }
 
-// 获取菜单路由（排除登录、注册、404等不需要在菜单中显示的路由）
+/** 侧边栏菜单：取 Layout 下未隐藏的子路由，并规范为绝对 path */
 const menuRoutes = computed(() => {
-  const routes = router.getRoutes()
-
-  // 过滤出需要在侧边栏显示的路由
-  return routes
-    .filter(r => {
-      // 需要认证且未被隐藏且不是根路径且不是动态路由参数
-      return r.meta?.requiresAuth &&
-             !r.meta?.hidden &&
-             r.path !== '/' &&
-             !r.path.includes(':') &&
-             r.parent === undefined
-    })
-    .sort((a, b) => {
-      // 按照 meta 中的排序字段或路径排序
-      const orderA = (a.meta?.order as number) || 0
-      const orderB = (b.meta?.order as number) || 0
-      if (orderA !== orderB) {
-        return orderA - orderB
-      }
-      return a.path.localeCompare(b.path)
-    })
+  const layoutRoute = constantRoutes.find((r) => r.path === '/' && r.children)
+  return (layoutRoute?.children ?? [])
+    .filter((r) => !r.meta?.hidden)
+    .map((r) => ({ ...r, path: toAbsolutePath(r.path) }))
 })
 
-// 获取图标组件
 const getIconComponent = (iconName: string): Component => {
   const icon = (ElementPlusIconsVue as Record<string, Component>)[iconName]
   return icon || ElementPlusIconsVue.Menu
 }
+
 </script>
 
 <style scoped>
@@ -159,9 +113,9 @@ const getIconComponent = (iconName: string): Component => {
   top: 60px;
   width: 250px;
   height: calc(100vh - 60px);
-  background: #ffffff;
-  border-right: 1px solid #e6e0e9;
-  transition: width 0.3s ease;
+  background: var(--wms-surface);
+  border-right: 1px solid var(--wms-border);
+  transition: width 0.3s ease, background-color 0.25s ease, border-color 0.25s ease;
   z-index: 999;
   overflow: hidden;
 }
@@ -179,55 +133,67 @@ const getIconComponent = (iconName: string): Component => {
 }
 
 .sidebar-menu {
+  /* 提取侧边栏菜单项公共尺寸变量，便于统一调整 */
+  --sidebar-item-height: 48px;
+  --sidebar-item-margin: 4px 8px;
+
   border-right: none;
   height: 100%;
+  background: transparent !important;
+  --el-menu-bg-color: transparent;
+  --el-menu-text-color: var(--wms-text-secondary);
+  --el-menu-active-color: var(--wms-primary);
+  --el-menu-hover-bg-color: var(--wms-primary-bg);
 }
 
-/* 菜单项样式优化 */
-.sidebar-menu :deep(.el-menu-item) {
-  height: 48px;
-  line-height: 48px;
-  margin: 4px 8px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
+/*
+  将 .el-menu-item 与 .el-sub-menu__title 的公共样式合并，
+  避免重复声明 height / margin / border-radius / transition。
+
+  使用 flex + align-items 代替 line-height 实现垂直居中：
+  - 避免多行文本时 line-height 失效导致的溢出问题
+  - 与 Element Plus 内部 flex 布局保持一致
+*/
+.sidebar-menu :deep(.el-menu-item),
+.sidebar-menu :deep(.el-sub-menu__title) {
+  display: flex;
+  align-items: center;
+  height: var(--sidebar-item-height);
+  margin: var(--sidebar-item-margin);
+  border-radius: var(--wms-radius);
+  /* 仅指定实际变化的属性，避免 transition: all 触发不必要的重绘 */
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.sidebar-menu :deep(.el-menu-item:hover) {
-  background-color: #f5f0ff;
+.sidebar-menu :deep(.el-menu-item:hover),
+.sidebar-menu :deep(.el-sub-menu__title:hover) {
+  background-color: var(--wms-primary-bg);
 }
 
 .sidebar-menu :deep(.el-menu-item.is-active) {
-  background-color: #f0ebff;
-  color: #6750a4;
+  background-color: var(--wms-primary-bg-active);
+  color: var(--wms-primary);
   font-weight: 600;
 }
 
-/* 子菜单样式 */
-.sidebar-menu :deep(.el-sub-menu__title) {
-  height: 48px;
-  line-height: 48px;
-  margin: 4px 8px;
-  border-radius: 12px;
-  transition: all 0.2s ease;
-}
-
-.sidebar-menu :deep(.el-sub-menu__title:hover) {
-  background-color: #f5f0ff;
-}
-
 .sidebar-menu :deep(.el-sub-menu.is-active > .el-sub-menu__title) {
-  background-color: #f0ebff;
-  color: #6750a4;
+  background-color: var(--wms-primary-bg-active);
+  color: var(--wms-primary);
 }
 
-/* 收起状态下的样式调整 */
+/*
+  折叠状态下仍需保留水平内边距与 margin，
+  使用 CSS 变量继承父级 margin 值，避免硬编码重复。
+  padding-left 使用 calc 使图标在折叠态居中：
+  (折叠宽度 64px - Element Plus 默认图标 24px) / 2 ≈ 20px，
+  但 Element Plus collapse 模式会自动叠加 padding，故用 !important 覆盖。
+*/
 .sidebar.collapsed .sidebar-menu :deep(.el-menu-item),
 .sidebar.collapsed .sidebar-menu :deep(.el-sub-menu__title) {
-  margin: 4px 8px;
+  margin: var(--sidebar-item-margin);
   padding-left: 18px !important;
 }
 
-/* 滚动条样式 */
 .sidebar-scrollbar :deep(.el-scrollbar__bar.is-vertical) {
   width: 6px;
 }
@@ -241,7 +207,6 @@ const getIconComponent = (iconName: string): Component => {
   background-color: #c0c4cc;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
