@@ -114,6 +114,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTheme, type ThemeName } from '@/composables/useTheme'
+import { logout } from '@/api/user'
 
 const router = useRouter()
 const route = useRoute()
@@ -160,6 +161,13 @@ const handleCommand = async (command: string) => {
           cancelButtonText: '取消',
           type: 'warning'
         })
+
+        // 通知后端使 token 失效（失败不阻塞本地登出）
+        try {
+          await logout()
+        } catch {
+          // 忽略服务端登出失败，继续本地清理
+        }
 
         localStorage.removeItem('token')
         localStorage.removeItem('userInfo')

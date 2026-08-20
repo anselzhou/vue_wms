@@ -173,6 +173,12 @@ export const constantRoutes: RouteRecordRaw[] = [
             name: 'MenuManagement',
             component: () => import('@/views/system/menu.vue'),
             meta: { title: '菜单管理', icon: 'Menu' }
+          },
+          {
+            path: 'log',
+            name: 'OperationLog',
+            component: () => import('@/views/system/log.vue'),
+            meta: { title: '操作日志', icon: 'Document' }
           }
         ]
       },
