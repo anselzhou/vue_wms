@@ -163,6 +163,12 @@ export const constantRoutes: RouteRecordRaw[] = [
             meta: { title: '个人资料', icon: 'UserFilled', hidden: true }
           },
           {
+            path: 'user/password',
+            name: 'UserPassword',
+            component: () => import('@/views/user/password.vue'),
+            meta: { title: '修改密码', icon: 'Lock', hidden: true }
+          },
+          {
             path: 'role',
             name: 'RoleManagement',
             component: () => import('@/views/system/role.vue'),

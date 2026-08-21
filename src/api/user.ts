@@ -13,9 +13,9 @@ interface LoginParams {
 }
 
 interface UpdatePwdParams {
-  old_pwd: string
-  new_pwd: string
-  re_pwd: string
+  oldPassword: string
+  newPassword: string
+  rePassword: string
 }
 
 export interface UserQuery {

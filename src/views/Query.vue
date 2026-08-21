@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { Search, Refresh, Switch, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
-import { queryByMaterial, queryByTypeCode, type MaterialPositionInfo } from '@/api/inventory'
+import { queryMaterialStock, queryStockByTypeCode, type MaterialPositionInfo } from '@/api/inventory'
 
 type QueryMode = 'material' | 'typeCode'
 
@@ -54,8 +54,8 @@ const handleSearch = async () => {
   try {
     const response =
       queryMode.value === 'material'
-        ? await queryByMaterial(kw)
-        : await queryByTypeCode(kw)
+        ? await queryMaterialStock(kw)
+        : await queryStockByTypeCode(kw)
 
     if (response.data) {
       tableData.value = Array.isArray(response.data) ? response.data : []

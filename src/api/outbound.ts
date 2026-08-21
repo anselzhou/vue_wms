@@ -105,15 +105,6 @@ export function updatePickingOrderStatus(id: number, status: string) {
   })
 }
 
-/** @deprecated 旧版创建接口（/outbound/create 后端不存在，保留兼容引用） */
-export function importPickingOrder(data: PickingOrderItem[]) {
-  return request({
-    url: '/outbound/import',
-    method: 'post',
-    data
-  })
-}
-
 // ============================================================
 // 出库模块
 // ============================================================

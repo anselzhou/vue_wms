@@ -34,24 +34,24 @@ export interface MaterialPositionInfo {
 }
 
 // ============================================================
-// 库存查询相关（部分接口的响应与后端路径需对齐）
+// 库存/物料位置查询（后端路径位于 MaterialController：/material/*）
 // ============================================================
 
-/** 按物料编码精确查询库存位置（后端路径：/inventory/queryByMaterial，返回数组） */
-export function queryByMaterial(material: string): Promise<ApiResult<MaterialPositionInfo[]>> {
-  return request({
-    url: '/inventory/queryByMaterial',
-    method: 'get',
-    params: { material }
-  }) as Promise<ApiResult<MaterialPositionInfo[]>>
-}
-
-/** 按物料编码查询该物料在各库位的库存（后端实际路径为 /material/queryByMaterial） */
+/** 按物料编码查询该物料在各库位的库存（GET /material/queryByMaterial） */
 export function queryMaterialStock(material: string): Promise<ApiResult<MaterialPositionInfo[]>> {
   return request({
     url: '/material/queryByMaterial',
     method: 'get',
     params: { material }
+  }) as Promise<ApiResult<MaterialPositionInfo[]>>
+}
+
+/** 按款式编码模糊查询库存位置（GET /material/queryByTypeCode） */
+export function queryStockByTypeCode(typeCode: string): Promise<ApiResult<MaterialPositionInfo[]>> {
+  return request({
+    url: '/material/queryByTypeCode',
+    method: 'get',
+    params: { typeCode }
   }) as Promise<ApiResult<MaterialPositionInfo[]>>
 }
 
@@ -71,13 +71,4 @@ export function locationReset(fromPosition: string, toPosition: string): Promise
     method: 'post',
     params: { fromPosition, toPosition }
   }) as Promise<ApiResult<string>>
-}
-
-/** 按款式编码模糊查询库存位置 */
-export function queryByTypeCode(typeCode: string): Promise<ApiResult<MaterialPositionInfo[]>> {
-  return request({
-    url: '/inventory/queryByTypeCode',
-    method: 'get',
-    params: { typeCode }
-  }) as Promise<ApiResult<MaterialPositionInfo[]>>
 }

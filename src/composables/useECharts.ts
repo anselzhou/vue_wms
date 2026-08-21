@@ -1,4 +1,4 @@
-import { onBeforeUnmount, onMounted, shallowRef, type Ref } from 'vue'
+import { onBeforeUnmount, onMounted, type Ref } from 'vue'
 import * as echarts from 'echarts/core'
 import { LineChart, BarChart, PieChart } from 'echarts/charts'
 import {

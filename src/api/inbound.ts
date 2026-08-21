@@ -85,28 +85,28 @@ export interface InboundOrderResponse {
   items: InboundOrderItemResponse[]
 }
 
-/** GET /inbound/list — 获取所有入库单（直接返回数组，无 Result 包裹） */
-export function getInboundOrderList() {
+/** GET /inbound/list — 获取所有入库单 */
+export function getInboundOrderList(): Promise<ApiResult<InboundOrderResponse[]>> {
   return request({
     url: '/inbound/list',
     method: 'get'
-  })
+  }) as Promise<ApiResult<InboundOrderResponse[]>>
 }
 
 /** GET /inbound/detail/{id} — 根据 ID 查询入库单 */
-export function getInboundDetail(id: number) {
+export function getInboundDetail(id: number): Promise<ApiResult<InboundOrderResponse>> {
   return request({
     url: `/inbound/detail/${id}`,
     method: 'get'
-  })
+  }) as Promise<ApiResult<InboundOrderResponse>>
 }
 
 /** GET /inbound/detail/no/{orderNo} — 根据订单号查询入库单 */
-export function getInboundDetailByNo(orderNo: string) {
+export function getInboundDetailByNo(orderNo: string): Promise<ApiResult<InboundOrderResponse>> {
   return request({
     url: `/inbound/detail/no/${orderNo}`,
     method: 'get'
-  })
+  }) as Promise<ApiResult<InboundOrderResponse>>
 }
 
 /** PUT /inbound/status/{id} — 更新入库单状态 */
@@ -115,42 +115,6 @@ export function updateInboundStatus(id: number, status: string) {
     url: `/inbound/status/${id}`,
     method: 'put',
     params: { status }
-  })
-}
-
-// ============================================================
-// 向下兼容的旧接口（供 CreateInboundOrder.vue 等使用）
-// ============================================================
-
-/** @deprecated 旧版物料项类型，保留兼容 */
-export interface InboundOrderItem {
-  material: string
-  ean?: string
-  brand: string
-  category?: string
-  color?: string
-  size?: string
-  season?: string
-  description?: string
-  quantity: number
-  price?: number
-}
-
-/** @deprecated 旧版入库单数据类型，保留兼容 */
-export interface InboundOrderData {
-  orderNo?: string
-  inboundTime?: string
-  materials: InboundOrderItem[]
-  totalQuantity?: number
-  remark?: string
-}
-
-/** @deprecated 旧版导入接口，保留兼容 */
-export function importInboundOrder(data: InboundOrderItem[]) {
-  return request({
-    url: '/inbound/import',
-    method: 'post',
-    data
   })
 }
 

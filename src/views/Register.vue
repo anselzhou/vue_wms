@@ -1,20 +1,31 @@
 <template>
   <div class="register-container">
+    <!-- 动态背景装饰 -->
+    <div class="bg-decoration">
+      <div class="bg-orb bg-orb--1"></div>
+      <div class="bg-orb bg-orb--2"></div>
+      <div class="bg-orb bg-orb--3"></div>
+      <div class="bg-grid"></div>
+    </div>
+
     <div class="register-card-wrapper">
       <!-- Logo 和品牌信息 -->
       <div class="brand-section">
-        <el-icon class="brand-icon" :size="64">
-          <Box />
-        </el-icon>
+        <div class="brand-logo">
+          <el-icon class="brand-icon" :size="40">
+            <Box />
+          </el-icon>
+        </div>
         <h1 class="brand-title">WMS</h1>
         <p class="brand-subtitle">仓库管理系统</p>
       </div>
 
-      <!-- 注册卡片 -->
+      <!-- 注册卡片（玻璃拟态） -->
       <el-card class="register-card" shadow="always">
         <template #header>
           <div class="card-header">
             <span class="card-title">创建账号</span>
+            <p class="card-desc">注册一个新账号开始使用系统</p>
           </div>
         </template>
 
@@ -226,20 +237,90 @@ const handleRegister = async () => {
 </script>
 
 <style scoped>
-/* Material Design 3 颜色系统 */
 .register-container {
+  position: relative;
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--wms-logo-from) 0%, var(--wms-logo-to) 100%);
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, var(--wms-logo-from) 35%, transparent) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 20%, color-mix(in srgb, var(--wms-logo-to) 30%, transparent) 0%, transparent 55%),
+    linear-gradient(135deg, var(--wms-logo-from) 0%, color-mix(in srgb, var(--wms-logo-from) 70%, var(--wms-logo-to) 30%) 50%, var(--wms-logo-to) 100%);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-  transition: background 0.25s ease;
+}
+
+/* ===== 动态背景装饰 ===== */
+.bg-decoration {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+  will-change: transform;
+  animation: orb-float 14s ease-in-out infinite;
+}
+
+.bg-orb--1 {
+  width: 420px;
+  height: 420px;
+  top: -120px;
+  left: -80px;
+  background: color-mix(in srgb, var(--wms-on-primary) 40%, transparent);
+}
+
+.bg-orb--2 {
+  width: 360px;
+  height: 360px;
+  bottom: -100px;
+  right: -60px;
+  background: color-mix(in srgb, var(--wms-primary) 60%, transparent);
+  animation-delay: -4s;
+}
+
+.bg-orb--3 {
+  width: 280px;
+  height: 280px;
+  top: 40%;
+  right: 12%;
+  background: color-mix(in srgb, var(--wms-on-primary) 25%, transparent);
+  animation-delay: -8s;
+}
+
+.bg-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--wms-on-primary) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--wms-on-primary) 8%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, rgba(0, 0, 0, 0.9) 0%, transparent 75%);
+}
+
+@keyframes orb-float {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -25px) scale(1.08); }
+  66% { transform: translate(-20px, 20px) scale(0.95); }
 }
 
 .register-card-wrapper {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 440px;
+  animation: wrapper-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes wrapper-in {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* 品牌区域 */
@@ -249,56 +330,79 @@ const handleRegister = async () => {
   color: var(--wms-on-primary);
 }
 
-.brand-icon {
-  background: color-mix(in srgb, var(--wms-on-primary) 20%, transparent);
-  border-radius: 24px;
-  padding: 16px;
+.brand-logo {
+  display: inline-flex;
   margin-bottom: 16px;
-  backdrop-filter: blur(10px);
+}
+
+.brand-icon {
+  background: color-mix(in srgb, var(--wms-on-primary) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--wms-on-primary) 30%, transparent);
+  border-radius: 20px;
+  padding: 14px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  animation: logo-glow 3s ease-in-out infinite;
+}
+
+@keyframes logo-glow {
+  0%, 100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+  50% { box-shadow: 0 8px 40px color-mix(in srgb, var(--wms-on-primary) 30%, transparent); }
 }
 
 .brand-title {
-  font-size: 32px;
+  font-size: 34px;
   font-weight: 700;
   margin: 0 0 8px 0;
-  letter-spacing: -0.5px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
 }
 
 .brand-subtitle {
   font-size: 16px;
-  opacity: 0.9;
+  opacity: 0.92;
   margin: 0;
+  letter-spacing: 2px;
 }
 
-/* 注册卡片 - Material Design 3 风格 */
+/* 注册卡片 - 玻璃拟态 */
 .register-card {
-  background: var(--wms-surface);
+  background: color-mix(in srgb, var(--wms-surface) 82%, transparent);
   border-radius: var(--wms-radius-lg);
-  border: none;
-  box-shadow: var(--wms-shadow-card);
+  border: 1px solid color-mix(in srgb, var(--wms-on-primary) 22%, transparent);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.24);
   overflow: hidden;
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 }
 
 .register-card :deep(.el-card__header) {
-  padding: 32px 32px 16px;
+  padding: 36px 36px 16px;
   background: transparent;
   border-bottom: none;
 }
 
 .card-header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
 }
 
 .card-title {
-  font-size: 24px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 700;
   color: var(--wms-text);
 }
 
+.card-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--wms-text-muted);
+}
+
 .register-card :deep(.el-card__body) {
-  padding: 24px 32px 32px;
+  padding: 24px 36px 36px;
 }
 
 /* 表单样式 */
@@ -312,19 +416,26 @@ const handleRegister = async () => {
 
 .register-form :deep(.el-input__wrapper) {
   border-radius: var(--wms-radius);
-  padding: 12px 16px;
+  padding: 8px 14px;
   box-shadow: none;
   border: 1px solid var(--wms-border);
-  transition: all 0.2s ease;
+  background-color: color-mix(in srgb, var(--wms-surface) 70%, transparent);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
 }
 
 .register-form :deep(.el-input__wrapper:hover) {
-  border-color: var(--wms-text-secondary);
+  border-color: var(--wms-primary-soft);
+  background-color: var(--wms-surface);
 }
 
 .register-form :deep(.el-input__wrapper.is-focus) {
   border-color: var(--wms-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--wms-primary) 15%, transparent);
+  background-color: var(--wms-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wms-primary) 16%, transparent);
+}
+
+.register-form :deep(.el-input__wrapper.is-error) {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--el-color-danger, #f56c6c) 14%, transparent);
 }
 
 .register-form :deep(.el-input__inner) {
@@ -333,6 +444,10 @@ const handleRegister = async () => {
 }
 
 .register-form :deep(.el-input__inner::placeholder) {
+  color: var(--wms-text-muted);
+}
+
+.register-form :deep(.el-input__prefix) {
   color: var(--wms-text-muted);
 }
 
@@ -347,31 +462,33 @@ const handleRegister = async () => {
   border-color: var(--wms-primary);
 }
 
-/* 注册按钮 */
+/* 注册按钮 - 渐变悬浮效果 */
 .register-button {
   width: 100%;
   height: 56px;
   border-radius: var(--wms-radius);
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  background: var(--wms-primary);
+  letter-spacing: 2px;
   border: none;
-  transition: all 0.2s ease;
+  background: linear-gradient(135deg, var(--wms-primary) 0%, color-mix(in srgb, var(--wms-primary-hover) 60%, var(--wms-primary)) 100%);
+  transition: all 0.25s ease;
 }
 
 .register-button:hover {
-  background: var(--wms-primary-hover);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--wms-primary) 30%, transparent);
+  background: linear-gradient(135deg, var(--wms-primary-hover) 0%, var(--wms-primary) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--wms-primary) 40%, transparent);
 }
 
 .register-button:active {
+  transform: translateY(0);
   background: var(--wms-primary-active);
 }
 
 .register-button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wms-primary) 20%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wms-primary) 25%, transparent);
 }
 
 /* 登录链接 */
@@ -406,6 +523,7 @@ const handleRegister = async () => {
   color: color-mix(in srgb, var(--wms-on-primary) 80%, transparent);
   font-size: 14px;
   margin-top: 24px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
 }
 
 /* 响应式设计 */
@@ -423,16 +541,29 @@ const handleRegister = async () => {
   }
 
   .register-card :deep(.el-card__header) {
-    padding: 24px 24px 16px;
+    padding: 28px 24px 12px;
   }
 
   .register-card :deep(.el-card__body) {
-    padding: 16px 24px 24px;
+    padding: 16px 24px 28px;
   }
 
   .card-title {
-    font-size: 20px;
+    font-size: 22px;
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .bg-orb {
+    animation: none;
+  }
+
+  .brand-icon {
+    animation: none;
+  }
+
+  .register-card-wrapper {
+    animation: none;
+  }
+}
 </style>

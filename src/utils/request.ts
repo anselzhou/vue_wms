@@ -17,19 +17,11 @@ service.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token')
     if (token) {
-      // 确保 Authorization header 正确设置
       config.headers.Authorization = `Bearer ${token}`
-      console.log('[Request Interceptor] URL:', config.url)
-      console.log('[Request Interceptor] Method:', config.method)
-      console.log('[Request Interceptor] Token存在，长度:', token.length)
-      console.log('[Request Interceptor] Authorization Header:', config.headers.Authorization.substring(0, 30) + '...')
-    } else {
-      console.log('[Request Interceptor] URL:', config.url, '- 无Token')
     }
     return config
   },
   (error) => {
-    console.error('请求错误:', error)
     return Promise.reject(error)
   }
 )
@@ -37,7 +29,6 @@ service.interceptors.request.use(
 service.interceptors.response.use(
   (response: AxiosResponse) => {
     const res = response.data
-    console.log('[Response Interceptor] URL:', response.config.url, '- Code:', res.code)
 
     if (res.code === 200) {
       return res
@@ -51,28 +42,13 @@ service.interceptors.response.use(
     return Promise.reject(new Error(res.message || '请求失败'))
   },
   (error) => {
-    console.error('[Response Interceptor] 响应错误:')
-    console.error('[Response Interceptor] URL:', error.config?.url)
-    console.error('[Response Interceptor] Method:', error.config?.method)
-    console.error('[Response Interceptor] Status:', error.response?.status)
-    console.error('[Response Interceptor] Response Data:', error.response?.data)
-    console.error('[Response Interceptor] Error Message:', error.message)
-    
-    // 打印完整的错误配置
-    if (error.config) {
-      console.error('[Response Interceptor] Request Headers:', error.config.headers)
-    }
-
     // 401 未授权始终需要处理（清除登录态并跳转）
     if (error.response?.status === 401) {
-      console.error('[401 Error] 未授权 - 当前路径:', window.location.pathname)
-      console.error('[401 Error] localStorage中的token:', localStorage.getItem('token'))
       ElMessage.error('未授权，请重新登录')
       localStorage.removeItem('token')
       localStorage.removeItem('userInfo')
       // 如果当前不在登录页，才重定向
       if (window.location.pathname !== '/login') {
-        console.log('[401 Error] 重定向到登录页')
         window.location.href = '/login'
       }
       return Promise.reject(error)
@@ -87,7 +63,6 @@ service.interceptors.response.use(
     if (error.response) {
       switch (error.response.status) {
         case 400:
-          // 只在HTTP错误时显示，不重复显示
           ElMessage.error(error.response.data?.message || '请求参数错误')
           break
         case 403:

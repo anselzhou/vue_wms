@@ -85,6 +85,10 @@
               <el-icon><Setting /></el-icon>
               设置
             </el-dropdown-item>
+            <el-dropdown-item command="changePassword">
+              <el-icon><Lock /></el-icon>
+              修改密码
+            </el-dropdown-item>
             <el-dropdown-item divided command="logout">
               <el-icon><SwitchButton /></el-icon>
               退出登录
@@ -110,7 +114,8 @@ import {
   ArrowDown,
   SwitchButton,
   Brush,
-  Check
+  Check,
+  Lock
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTheme, type ThemeName } from '@/composables/useTheme'
@@ -153,6 +158,9 @@ const handleCommand = async (command: string) => {
       break
     case 'settings':
       router.push('/settings')
+      break
+    case 'changePassword':
+      router.push('/system/user/password')
       break
     case 'logout':
       try {
