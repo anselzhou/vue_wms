@@ -149,6 +149,7 @@ import type { RoleParams } from '@/api/role'
 import { getPermissionTree } from '@/api/permission'
 import type { Permission } from '@/types/permission'
 import type { Role } from '@/types/user'
+import { playCorrect, playError } from '@/utils/sound'
 
 const query = reactive<{ keyword?: string; page: number; pageSize: number }>({
   keyword: undefined,
@@ -222,6 +223,16 @@ const fetchData = async () => {
 const handleSearch = () => {
   query.page = 1
   fetchData()
+    .then(() => {
+      if (tableData.value.length === 0) {
+        playError()
+      } else {
+        playCorrect()
+      }
+    })
+    .catch(() => {
+      playError()
+    })
 }
 
 const handleReset = () => {

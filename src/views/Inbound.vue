@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Plus, Delete, Refresh, Check } from '@element-plus/icons-vue'
 import { getMaterialInfo } from '@/api/material'
 import { insertBatch, type InventoryItem } from '@/api/inbound'
+import { playCorrect, playError } from '@/utils/sound'
 
 // ============================================================
 // 类型定义
@@ -12,8 +13,8 @@ import { insertBatch, type InventoryItem } from '@/api/inbound'
 /**
  * 入库缓存暂存位明细（前端暂存，提交时映射为后端 Inventory 契约）
  *
- * 合并键：`position + material + batch`（批次为空时按空字符串归并）。
- * 相同合并键的多次扫码会累加数量，不同合并键则新增一行。
+ * 逐件入库：每次扫码新增一行，数量固定为 1（不叠加）；
+ * 提交时按「库位 + 物料编码」统一汇总数量后发送后端。
  */
 interface InboundCacheItem {
   /** 库位 */
@@ -24,9 +25,11 @@ interface InboundCacheItem {
   ean: string
   /** 物料描述 */
   description: string
-  /** 批次（前端暂存分组字段，后端 inventory 表无批次列，提交时不携带） */
-  batch: string
-  /** 数量 */
+  /** 颜色（来自物料主数据） */
+  color: string
+  /** 尺码（来自物料主数据） */
+  size: string
+  /** 数量（逐件入库固定为 1，提交时按物料统一汇总） */
   quantity: number
 }
 
@@ -46,8 +49,6 @@ const INBOUND_STAGING_POSITION = '入库暂存位'
 // ============================================================
 
 const materialCode = ref('')
-const batch = ref('')
-const defaultQuantity = ref(1)
 
 /** 暂存位明细 */
 const cacheItems = ref<InboundCacheItem[]>([])
@@ -75,9 +76,9 @@ const totalQuantity = computed(() =>
 // 工具函数
 // ============================================================
 
-/** 计算暂存位合并键 */
-const buildMergeKey = (position: string, material: string, batch: string): string =>
-  `${position.trim()}|${material.trim()}|${(batch ?? '').trim()}`
+/** 计算暂存位合并键（库位 + 物料编码） */
+const buildMergeKey = (position: string, material: string): string =>
+  `${position.trim()}|${material.trim()}`
 
 /** 校验物料编码格式，返回错误文案（空字符串表示合法） */
 const validateBarcode = (value: string): string => {
@@ -92,7 +93,7 @@ const validateBarcode = (value: string): string => {
 // 交互逻辑
 // ============================================================
 
-/** 扫描/添加物料到暂存位 */
+/** 扫描/添加物料到暂存位（每次扫码新增一行，数量固定为 1） */
 const handleAddMaterial = async () => {
   // 防重复触发：扫码枪连续回车时避免并发重复查询
   if (isAdding.value) return
@@ -100,99 +101,68 @@ const handleAddMaterial = async () => {
   // 两段式入库：固定写入「入库暂存位」
   const pos = INBOUND_STAGING_POSITION
   const code = materialCode.value.trim()
-  const batchValue = batch.value.trim()
 
   // 1. 物料编码校验（空码 / 非法条码）
   const barcodeError = validateBarcode(materialCode.value)
   if (barcodeError) {
     ElMessage.warning(barcodeError)
+    playError()
     materialInputRef.value?.focus()
     return
   }
 
-  // 2. 数量校验
-  const qty = Math.floor(defaultQuantity.value)
-  if (!Number.isFinite(qty) || qty < 1) {
-    ElMessage.warning('请输入有效数量（大于 0 的整数）')
-    return
-  }
-
-  // 3. 暂存位满载校验
+  // 2. 暂存位满载校验
   if (isCacheFull.value) {
     ElMessage.error(`入库缓存暂存位已满（上限 ${MAX_CACHE_SIZE} 条），请先提交或清空`)
+    playError()
     return
   }
 
   isAdding.value = true
   try {
-    // 4. 查询物料主数据（后端返回数组，取第一条精确匹配）
+    // 3. 查询物料主数据（后端返回数组，取第一条精确匹配）
     const res = await getMaterialInfo(code)
     const list = Array.isArray(res?.data) ? res.data : []
     const material = list.find(m => m.material === code) ?? list[0]
 
     if (!material) {
       ElMessage.error(`物料编码 "${code}" 不存在，请检查条码后重新扫描`)
+      playError()
       return
     }
 
-    // 5. 写入暂存位：相同合并键累加，否则新增
-    const mergeKey = buildMergeKey(pos, material.material, batchValue)
-    const existing = cacheItems.value.find(
-      item => buildMergeKey(item.position, item.material, item.batch) === mergeKey
-    )
+    // 4. 每次扫码新增一行，数量固定为 1（不合并叠加），便于逐件核对与误扫删除
+    cacheItems.value.push({
+      position: pos,
+      material: material.material,
+      ean: material.ean || '',
+      description: material.description || '',
+      color: material.color || '',
+      size: material.size || '',
+      quantity: 1
+    })
+    ElMessage.success(`已添加：${material.description || material.material}`)
+    playCorrect()
 
-    if (existing) {
-      existing.quantity += qty
-      existing.description = material.description || existing.description
-      existing.ean = material.ean || existing.ean
-      ElMessage.success(
-        `已合并：${material.description || material.material}，当前累计 ${existing.quantity} 件`
-      )
-    } else {
-      cacheItems.value.push({
-        position: pos,
-        material: material.material,
-        ean: material.ean || '',
-        description: material.description || '',
-        batch: batchValue,
-        quantity: qty
-      })
-      ElMessage.success(`已写入暂存位：${material.description || material.material} x ${qty}`)
-    }
-
-    // 6. 清空扫描输入，聚焦物料框以便连续扫码
+    // 5. 清空扫描输入，聚焦物料框以便连续扫码
     materialCode.value = ''
     await nextTick()
     materialInputRef.value?.focus()
   } catch (error: any) {
     const message = error?.message || error?.response?.data?.message
     ElMessage.error(message || '查询物料失败，请稍后重试')
+    playError()
   } finally {
     isAdding.value = false
   }
 }
 
-/** 删除暂存位单行 */
+/** 删除暂存位单行（扫错条码时快速移除） */
 const handleDelete = (index: number) => {
   const item = cacheItems.value[index]
   if (!item) return
-
-  ElMessageBox.confirm(
-    `确定要删除 "${item.description || item.material}" 吗？`,
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  )
-    .then(() => {
-      cacheItems.value.splice(index, 1)
-      ElMessage.success('删除成功')
-    })
-    .catch(() => {
-      /* 用户取消，忽略 */
-    })
+  cacheItems.value.splice(index, 1)
+  ElMessage.success(`已删除：${item.description || item.material}`)
 }
 
 /** 清空暂存位 */
@@ -227,10 +197,10 @@ const handleSubmit = async () => {
     return
   }
 
-  // 提交前对暂存位按合并键再次归并，确保不出现重复键
+  // 提交前对暂存位按「库位 + 物料」统一汇总数量，确保不出现重复键
   const mergedMap = new Map<string, InventoryItem>()
   for (const item of cacheItems.value) {
-    const key = buildMergeKey(item.position, item.material, item.batch)
+    const key = buildMergeKey(item.position, item.material)
     const existing = mergedMap.get(key)
     if (existing) {
       existing.quantity += item.quantity
@@ -259,7 +229,6 @@ const handleSubmit = async () => {
     // 成功后清空暂存位与输入
     cacheItems.value = []
     materialCode.value = ''
-    batch.value = ''
     await nextTick()
     materialInputRef.value?.focus()
   } catch (error: any) {
@@ -277,60 +246,10 @@ const handleSubmit = async () => {
       <template #header>
         <div class="card-header">
           <h2 class="card-title">入库管理</h2>
-          <el-tag type="success" size="large">
-            暂存 {{ cacheItems.length }} 条 / {{ totalQuantity }} 件
-          </el-tag>
-        </div>
-      </template>
-
-      <!-- 输入区域 -->
-      <div class="input-section">
-        <el-form label-position="top" size="large" @submit.prevent>
-          <el-form-item label="入库库位">
-            <el-alert
-              type="info"
-              :closable="false"
-              show-icon
-              title="入库暂存位"
-            >
-              所有入库货物统一先写入「入库暂存位」，再通过「物料上架」搬移到正式库位。
-            </el-alert>
-          </el-form-item>
-
-          <div class="input-row">
-            <el-form-item label="物料编码" class="grow">
-              <el-input
-                ref="materialInputRef"
-                v-model="materialCode"
-                placeholder="扫描/输入物料编码，回车写入暂存位"
-                clearable
-                :prefix-icon="Search"
-                @keyup.enter="handleAddMaterial"
-              />
-            </el-form-item>
-
-            <el-form-item label="批次" class="batch">
-              <el-input
-                v-model="batch"
-                placeholder="选填：批次号"
-                clearable
-                @keyup.enter="handleAddMaterial"
-              />
-            </el-form-item>
-
-            <el-form-item label="数量" class="qty">
-              <el-input-number
-                v-model="defaultQuantity"
-                :min="1"
-                :max="999999"
-                :step="1"
-                controls-position="right"
-                @keyup.enter="handleAddMaterial"
-              />
-            </el-form-item>
-          </div>
-
-          <div class="action-row">
+          <div class="header-actions">
+            <el-tag type="success" size="large">
+              暂存 {{ cacheItems.length }} 条 / {{ totalQuantity }} 件
+            </el-tag>
             <el-button
               type="primary"
               size="large"
@@ -340,6 +259,27 @@ const handleSubmit = async () => {
             >
               写入暂存位
             </el-button>
+          </div>
+        </div>
+      </template>
+
+      <!-- 输入区域 -->
+      <div class="input-section">
+        <el-form label-position="top" size="large" @submit.prevent>
+          <div class="input-row">
+            <el-form-item label="物料编码" class="grow">
+              <el-input
+                ref="materialInputRef"
+                v-model="materialCode"
+                placeholder="扫描/输入物料编码，回车添加到下方列表"
+                clearable
+                :prefix-icon="Search"
+                @keyup.enter="handleAddMaterial"
+              />
+            </el-form-item>
+          </div>
+
+          <div class="action-row">
             <el-tag v-if="isCacheFull" type="danger" effect="dark">
               暂存位已满（{{ MAX_CACHE_SIZE }} 条），请先提交或清空
             </el-tag>
@@ -379,14 +319,16 @@ const handleSubmit = async () => {
             <template #default="{ row }">{{ row.ean || '-' }}</template>
           </el-table-column>
 
-          <el-table-column prop="description" label="物料描述" min-width="220" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.description || '-' }}</template>
+          <el-table-column prop="color" label="颜色" width="100" align="center">
+            <template #default="{ row }">{{ row.color || '-' }}</template>
           </el-table-column>
 
-          <el-table-column prop="batch" label="批次" width="130" align="center">
-            <template #default="{ row }">
-              {{ row.batch || '-' }}
-            </template>
+          <el-table-column prop="size" label="尺码" width="100" align="center">
+            <template #default="{ row }">{{ row.size || '-' }}</template>
+          </el-table-column>
+
+          <el-table-column prop="description" label="物料描述" min-width="220" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.description || '-' }}</template>
           </el-table-column>
 
           <el-table-column prop="quantity" label="数量" width="110" align="center">
@@ -395,16 +337,16 @@ const handleSubmit = async () => {
             </template>
           </el-table-column>
 
-          <el-table-column label="操作" width="100" align="center" fixed="right">
+          <!-- 悬停删除：鼠标移到行上时，行尾显示删除图标 -->
+          <el-table-column width="60" align="center" class-name="delete-col">
             <template #default="{ $index }">
-              <el-button
-                type="danger"
-                size="small"
-                :icon="Delete"
+              <el-icon
+                class="row-delete-btn"
+                title="删除此行"
                 @click="handleDelete($index)"
               >
-                删除
-              </el-button>
+                <Delete />
+              </el-icon>
             </template>
           </el-table-column>
         </el-table>
@@ -452,6 +394,12 @@ const handleSubmit = async () => {
   align-items: center;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .card-title {
   margin: 0;
   font-size: 20px;
@@ -474,18 +422,23 @@ const handleSubmit = async () => {
   flex: 1;
 }
 
-.input-row .batch {
-  width: 200px;
-}
-
-.input-row .qty {
-  width: 180px;
-}
-
 .action-row {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* 表格行悬停删除图标 */
+.row-delete-btn {
+  font-size: 18px;
+  color: var(--el-color-danger);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.el-table__row:hover .row-delete-btn {
+  opacity: 1;
 }
 
 .table-section {
@@ -512,11 +465,6 @@ const handleSubmit = async () => {
     gap: 0;
   }
 
-  .input-row .batch,
-  .input-row .qty {
-    width: 100%;
-  }
-
   .action-section {
     flex-direction: column;
   }
@@ -526,3 +474,4 @@ const handleSubmit = async () => {
   }
 }
 </style>
+

@@ -1,14 +1,21 @@
 <template>
-  <div class="perm-page">
+  <div class="menu-page">
     <el-card shadow="never" class="table-card">
       <div class="toolbar">
-        <el-button type="primary" :icon="Plus" @click="handleCreate()">新增权限</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleCreate()">新增</el-button>
         <el-button :icon="Refresh" @click="fetchData">刷新</el-button>
       </div>
 
-      <el-table v-loading="isLoading" :data="tableData" border stripe row-key="id" default-expand-all>
-        <el-table-column prop="permName" label="权限名称" min-width="160" />
-        <el-table-column prop="permCode" label="权限编码" min-width="150" />
+      <!-- 菜单树表格 -->
+      <el-table
+        v-loading="isLoading"
+        :data="tableData"
+        border
+        stripe
+        row-key="id"
+        default-expand-all
+      >
+        <el-table-column prop="permName" label="名称" min-width="180" />
         <el-table-column label="类型" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="typeTagType(row.permType)" size="small">
@@ -16,22 +23,24 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="数据范围" width="110" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.permType === 'data'" size="small" type="info">
-              {{ scopeLabel(row.dataScope) }}
-            </el-tag>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="path" label="路由路径" min-width="140">
+        <el-table-column prop="path" label="路由" min-width="150">
           <template #default="{ row }">
             {{ row.path || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="component" label="组件" min-width="140">
+        <el-table-column prop="component" label="组件路径" min-width="150">
           <template #default="{ row }">
             {{ row.component || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="permCode" label="权限标识" min-width="150">
+          <template #default="{ row }">
+            {{ row.permCode || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="icon" label="图标" width="80" align="center">
+          <template #default="{ row }">
+            {{ row.icon || '-' }}
           </template>
         </el-table-column>
         <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
@@ -55,53 +64,54 @@
     <!-- 新增 / 编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
-      :title="isEdit ? '编辑权限' : '新增权限'"
+      :title="isEdit ? '编辑菜单' : '新增菜单'"
       width="560px"
       destroy-on-close
     >
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
-        <el-form-item label="上级权限" prop="parentId">
+        <el-form-item label="上级节点" prop="parentId">
           <el-tree-select
             v-model="form.parentId"
             :data="parentOptions"
             :props="{ label: 'permName', value: 'id', children: 'children' }"
             check-strictly
             default-expand-all
-            placeholder="不选则为顶级权限"
+            placeholder="不选则为顶级节点"
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="权限名称" prop="permName">
+        <el-form-item label="名称" prop="permName">
           <el-input v-model="form.permName" placeholder="如 用户管理 / 新增用户" />
         </el-form-item>
-        <el-form-item label="权限编码" prop="permCode">
-          <el-input v-model="form.permCode" placeholder="如 user:create" />
-        </el-form-item>
-        <el-form-item label="权限类型" prop="permType">
+        <el-form-item label="类型" prop="permType">
           <el-select v-model="form.permType" style="width: 100%">
+            <el-option label="目录" value="catalog" />
             <el-option label="菜单" value="menu" />
             <el-option label="按钮" value="button" />
-            <el-option label="数据" value="data" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="form.permType === 'data'" label="数据范围" prop="dataScope">
-          <el-select v-model="form.dataScope" style="width: 100%">
-            <el-option label="全部数据" value="ALL" />
-            <el-option label="本部门数据" value="DEPT" />
-            <el-option label="仅本人数据" value="SELF" />
-          </el-select>
-        </el-form-item>
+        <template v-if="form.permType === 'catalog'">
+          <el-form-item label="路由路径" prop="path">
+            <el-input v-model="form.path" placeholder="如 /system" />
+          </el-form-item>
+          <el-form-item label="图标" prop="icon">
+            <el-input v-model="form.icon" placeholder="Element Plus 图标名，如 Setting" />
+          </el-form-item>
+        </template>
         <template v-if="form.permType === 'menu'">
           <el-form-item label="路由路径" prop="path">
             <el-input v-model="form.path" placeholder="如 /system/user/list" />
           </el-form-item>
-          <el-form-item label="组件" prop="component">
+          <el-form-item label="组件路径" prop="component">
             <el-input v-model="form.component" placeholder="如 system/user/index" />
           </el-form-item>
           <el-form-item label="图标" prop="icon">
             <el-input v-model="form.icon" placeholder="Element Plus 图标名，如 User" />
           </el-form-item>
         </template>
+        <el-form-item v-if="form.permType !== 'catalog'" label="权限标识" prop="permCode">
+          <el-input v-model="form.permCode" placeholder="如 user:create" />
+        </el-form-item>
         <el-form-item label="排序" prop="sortOrder">
           <el-input-number v-model="form.sortOrder" :min="0" controls-position="right" style="width: 100%" />
         </el-form-item>
@@ -139,7 +149,7 @@ const formRef = ref<FormInstance>()
 const form = reactive<PermissionParams>({
   permCode: '',
   permName: '',
-  permType: 'menu',
+  permType: 'catalog',
   parentId: 0,
   dataScope: 'ALL',
   path: '',
@@ -151,19 +161,36 @@ const form = reactive<PermissionParams>({
 
 const formRules: FormRules = {
   permName: [
-    { required: true, message: '请输入权限名称', trigger: 'blur' },
-    { max: 64, message: '权限名称不能超过 64 个字符', trigger: 'blur' }
+    { required: true, message: '请输入名称', trigger: 'blur' },
+    { max: 64, message: '名称不能超过 64 个字符', trigger: 'blur' }
   ],
   permCode: [
-    { required: true, message: '请输入权限编码', trigger: 'blur' },
-    { pattern: /^[a-zA-Z][a-zA-Z0-9:_-]{1,63}$/, message: '权限编码格式不正确（如 user:create）', trigger: 'blur' }
+    {
+      validator: (_rule, value, callback) => {
+        if (form.permType === 'catalog') {
+          callback()
+          return
+        }
+        if (!value) {
+          callback(new Error('请输入权限标识'))
+          return
+        }
+        if (!/^[a-zA-Z][a-zA-Z0-9:_-]{1,63}$/.test(value)) {
+          callback(new Error('权限标识格式不正确（如 user:create）'))
+          return
+        }
+        callback()
+      },
+      trigger: 'blur'
+    }
   ],
-  permType: [{ required: true, message: '请选择权限类型', trigger: 'change' }],
+  permType: [{ required: true, message: '请选择类型', trigger: 'change' }],
   path: [{ max: 128, message: '路由路径不能超过 128 个字符', trigger: 'blur' }]
 }
 
 const typeLabel = (t: PermType) => {
   switch (t) {
+    case 'catalog': return '目录'
     case 'menu': return '菜单'
     case 'button': return '按钮'
     case 'data': return '数据'
@@ -173,27 +200,19 @@ const typeLabel = (t: PermType) => {
 
 const typeTagType = (t: PermType) => {
   switch (t) {
+    case 'catalog': return 'warning'
     case 'menu': return 'primary'
     case 'button': return 'success'
-    case 'data': return 'warning'
+    case 'data': return 'info'
     default: return 'info'
   }
 }
 
-const scopeLabel = (scope?: string) => {
-  switch (scope) {
-    case 'ALL': return '全部'
-    case 'DEPT': return '本部门'
-    case 'SELF': return '本人'
-    default: return scope || '-'
-  }
-}
-
 const parentOptions = computed(() => {
-  // 构建可选择父级的树（排除自身）
+  // 构建可选择父级的树（排除自身，且只允许目录/菜单作为父级）
   const clone = (list: Permission[]): Permission[] =>
     list
-      .filter((p) => p.id !== editingId.value)
+      .filter((p) => p.id !== editingId.value && p.permType !== 'button' && p.permType !== 'data')
       .map((p) => ({
         ...p,
         children: p.children ? clone(p.children) : undefined
@@ -216,7 +235,10 @@ const handleCreate = (parent?: Permission) => {
   editingId.value = null
   form.permCode = ''
   form.permName = ''
-  form.permType = 'menu'
+  // 根据父节点类型推断新增类型：父为目录 → 新增菜单；父为菜单 → 新增按钮；无父 → 目录
+  if (parent?.permType === 'catalog') form.permType = 'menu'
+  else if (parent?.permType === 'menu') form.permType = 'button'
+  else form.permType = 'catalog'
   form.parentId = parent ? parent.id : 0
   form.dataScope = 'ALL'
   form.path = ''
@@ -232,7 +254,7 @@ const handleEdit = (row: Permission) => {
   editingId.value = row.id
   form.permCode = row.permCode
   form.permName = row.permName
-  form.permType = row.permType
+  form.permType = row.permType === 'data' ? 'menu' : row.permType
   form.parentId = row.parentId ?? 0
   form.dataScope = row.dataScope || 'ALL'
   form.path = row.path || ''
@@ -268,7 +290,7 @@ const handleSubmit = async () => {
 
 const handleDelete = async (row: Permission) => {
   try {
-    await ElMessageBox.confirm(`确定要删除权限「${row.permName}」吗？此操作不可恢复。`, '警告', {
+    await ElMessageBox.confirm(`确定要删除「${row.permName}」吗？子节点将一并删除，此操作不可恢复。`, '警告', {
       type: 'warning',
       confirmButtonText: '删除',
       cancelButtonText: '取消'
@@ -287,7 +309,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.perm-page {
+.menu-page {
   display: flex;
   flex-direction: column;
   gap: 16px;

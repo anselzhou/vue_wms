@@ -3,6 +3,7 @@ import { ref, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import ToggleLockButton from '@/components/ToggleLockButton.vue'
 import { relocate, queryMaterialStock, type MaterialPositionInfo } from '@/api/inventory'
+import { playCorrect, playError } from '@/utils/sound'
 
 /** 两段式上架：来源库位固定为「入库暂存位」 */
 const INBOUND_STAGING_POSITION = '入库暂存位'
@@ -42,18 +43,20 @@ const toggleLockLocation = () => {
   }
 }
 
-/** 查询该物料在入库暂存位的库存 */
+/** 查询该物料在入库暂存位的库存（静默，不播放音效，由调用方控制） */
 const loadStagingStock = async (material: string) => {
   stagingStock.value = null
-  if (!material) return
+  if (!material) return false
 
   stockLoading.value = true
   try {
     const res = await queryMaterialStock(material)
     const list = Array.isArray(res?.data) ? (res.data as MaterialPositionInfo[]) : []
     stagingStock.value = list.find(r => r.position === INBOUND_STAGING_POSITION) ?? null
+    return true
   } catch {
     stagingStock.value = null
+    return false
   } finally {
     stockLoading.value = false
   }
@@ -63,16 +66,23 @@ const loadStagingStock = async (material: string) => {
 const handleMaterialEnter = async () => {
   const material = materialCode.value.trim()
   if (!material) {
+    playError()
     materialInputRef.value?.focus()
     return
   }
-  await loadStagingStock(material)
+  const ok = await loadStagingStock(material)
   if (isSingleMode.value) {
+    // 单件模式直接上架，音效由 handleSubmit 负责
     await handleSubmit()
   } else {
-    // 非逐件模式聚焦数量输入
-    const qtyInput = document.querySelector<HTMLInputElement>('.putaway-qty input')
-    qtyInput?.focus()
+    if (ok) {
+      playCorrect()
+      // 非逐件模式聚焦数量输入
+      const qtyInput = document.querySelector<HTMLInputElement>('.putaway-qty input')
+      qtyInput?.focus()
+    } else {
+      playError()
+    }
   }
 }
 
@@ -81,16 +91,19 @@ const handleSubmit = async () => {
   // 校验目标库位不能为空
   if (!location.value.trim()) {
     ElMessage.warning('请输入目标库位')
+    playError()
     return
   }
   if (location.value.trim() === INBOUND_STAGING_POSITION) {
     ElMessage.warning('目标库位不能是「入库暂存位」，请选择正式库位')
+    playError()
     return
   }
   // 校验物料编码不能为空
   const material = materialCode.value.trim()
   if (!material) {
     ElMessage.warning('请输入物料编码')
+    playError()
     return
   }
 
@@ -100,6 +113,7 @@ const handleSubmit = async () => {
   // 非逐件模式下需要校验数量有效性
   if (!isSingleMode.value && (!submitQty || submitQty <= 0)) {
     ElMessage.warning('请输入有效数量')
+    playError()
     return
   }
 
@@ -109,10 +123,12 @@ const handleSubmit = async () => {
   }
   if (!stagingStock.value) {
     ElMessage.error('「入库暂存位」无该物料的库存记录，无法上架')
+    playError()
     return
   }
   if (submitQty! > stagingAvailable.value) {
     ElMessage.error(`「入库暂存位」可用库存不足，当前可用 ${stagingAvailable.value} 件`)
+    playError()
     return
   }
 
@@ -126,6 +142,7 @@ const handleSubmit = async () => {
       quantity: submitQty!
     })
     ElMessage.success(`上架成功：${material} x ${submitQty} → ${location.value.trim()}`)
+    playCorrect()
     // 上架成功后清空物料编码与暂存位缓存
     materialCode.value = ''
     stagingStock.value = null
@@ -143,6 +160,7 @@ const handleSubmit = async () => {
   } catch (error: any) {
     // 优先展示后端返回的错误信息，否则展示默认提示
     ElMessage.error(error?.response?.data?.message || error?.message || '上架失败，请稍后重试')
+    playError()
   } finally {
     isLoading.value = false
   }

@@ -36,10 +36,10 @@
 
           <el-menu-item
             v-else-if="hasSingleVisibleChild(item)"
-            :index="resolveChildPath(item.path, item.children![0].path)"
+            :index="resolveChildPath(item.path, getVisibleChildren(item)[0].path)"
           >
-            <el-icon v-if="item.meta?.icon || item.children![0].meta?.icon">
-              <component :is="getIconComponent((item.meta?.icon || item.children![0].meta?.icon)!)" />
+            <el-icon v-if="item.meta?.icon || getVisibleChildren(item)[0].meta?.icon">
+              <component :is="getIconComponent((item.meta?.icon || getVisibleChildren(item)[0].meta?.icon)!)" />
             </el-icon>
             <template #title>{{ item.meta?.title }}</template>
           </el-menu-item>
@@ -63,6 +63,7 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import type { Component } from 'vue'
 import type { RouteRecordRaw } from 'vue-router'
 import { constantRoutes } from '@/router/routes'
+import { hasPermission } from '@/utils/permission'
 
 interface Props {
   isCollapsed: boolean
@@ -74,8 +75,14 @@ const route = useRoute()
 
 const activeMenu = computed(() => route.path)
 
+/**
+ * 过滤有权限访问的可见子菜单：
+ * - 隐藏路由（meta.hidden）不显示
+ * - meta.perms 配置了权限编码的，需当前用户拥有其中任一编码
+ * - 未配置 perms 的菜单默认可见
+ */
 const getVisibleChildren = (r: RouteRecordRaw): RouteRecordRaw[] =>
-  (r.children ?? []).filter((child) => !child.meta?.hidden)
+  (r.children ?? []).filter((child) => !child.meta?.hidden && hasPermission(child.meta?.perms))
 
 const shouldShowSubMenu = (r: RouteRecordRaw): boolean =>
   getVisibleChildren(r).length > 1
@@ -91,11 +98,22 @@ const resolveChildPath = (parentPath: string, childPath: string): string => {
   return `${toAbsolutePath(parentPath)}/${childPath}`.replace(/\/+/g, '/')
 }
 
-/** 侧边栏菜单：取 Layout 下未隐藏的子路由，并规范为绝对 path */
+/**
+ * 侧边栏菜单：取 Layout 下未隐藏、且当前用户有权限的子路由，并规范为绝对 path。
+ * 过滤规则：
+ * - 隐藏路由（meta.hidden）不显示
+ * - 一级路由自身未配置 perms，或已拥有其中任一权限编码
+ * - 一级路由是父级菜单（有 children）时，仅当存在至少一个可见且有权限的子菜单才显示
+ */
 const menuRoutes = computed(() => {
   const layoutRoute = constantRoutes.find((r) => r.path === '/' && r.children)
   return (layoutRoute?.children ?? [])
     .filter((r) => !r.meta?.hidden)
+    .filter((r) => {
+      if (!hasPermission(r.meta?.perms)) return false
+      if (r.children?.length) return getVisibleChildren(r).length > 0
+      return true
+    })
     .map((r) => ({ ...r, path: toAbsolutePath(r.path) }))
 })
 

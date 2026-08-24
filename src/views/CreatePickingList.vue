@@ -236,6 +236,7 @@ import { createPickingOrder, type MaterialRequest } from '@/api/outbound'
 import { getMaterialInfo } from '@/api/material'
 import { getUserInfo } from '@/utils/setUserInfo'
 import ExcelImporter from '@/utils/ExcelImporter'
+import { playCorrect, playError } from '@/utils/sound'
 
 const router = useRouter()
 
@@ -295,6 +296,7 @@ const handleSearchEnter = async () => {
   const keyword = searchKeyword.value.trim()
   if (!keyword) {
     ElMessage.warning('请输入物料编码')
+    playError()
     return
   }
 
@@ -308,13 +310,16 @@ const handleSearchEnter = async () => {
       addMaterialToTable(material as unknown as MaterialFullInfo)
       searchKeyword.value = ''
       ElMessage.success(`已添加物料：${material.description || material.material}`)
+      playCorrect()
     } else {
       // 接口返回成功但无数据，视为物料编码错误
       ElMessage.warning('物料编码错误，请重新输入')
+      playError()
     }
   } catch {
     // 查不到物料或接口异常时，统一提示物料编码错误
     ElMessage.warning('物料编码错误，请重新输入')
+    playError()
   }
 }
 

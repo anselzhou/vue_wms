@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { Search, Refresh, Switch, ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 import { queryMaterialStock, queryStockByTypeCode, type MaterialPositionInfo } from '@/api/inventory'
+import { playCorrect, playError } from '@/utils/sound'
 
 type QueryMode = 'material' | 'typeCode'
 
@@ -46,6 +47,7 @@ const handleSearch = async () => {
   const kw = keyword.value.trim()
   if (!kw) {
     ElMessage.warning(queryMode.value === 'material' ? '请输入物料编码' : '请输入款式编码')
+    playError()
     return
   }
 
@@ -61,17 +63,21 @@ const handleSearch = async () => {
       tableData.value = Array.isArray(response.data) ? response.data : []
       if (tableData.value.length === 0) {
         ElMessage.info('未查询到库存信息')
+        playError()
       } else {
         ElMessage.success(`查询成功，共找到 ${tableData.value.length} 条记录`)
+        playCorrect()
       }
     } else {
       tableData.value = []
       ElMessage.info('未查询到库存信息')
+      playError()
     }
     currentPage.value = 1
   } catch {
     // 错误已在拦截器中统一处理
     tableData.value = []
+    playError()
   } finally {
     loading.value = false
   }

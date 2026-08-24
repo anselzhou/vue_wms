@@ -269,6 +269,7 @@ import {
   type PickingOrder,
   type PickingOrderItem
 } from '@/api/outbound'
+import { playCorrect, playError } from '@/utils/sound'
 
 const router = useRouter()
 
@@ -461,6 +462,7 @@ const confirmPicked = async (row: PickingOrderItem) => {
   row.pickedQuantity = row.requiredQuantity
 
   ElMessage.success(`已确认拣货：${row.material} @ ${row.position || '未分配库位'}`)
+  playCorrect()
 
   // 若所有项均完成，则完成订单
   if (allPicked.value) {
@@ -473,18 +475,21 @@ const handleScanConfirm = async () => {
   const value = scanInput.value.trim()
   if (!value) {
     ElMessage.warning('请输入或扫描条码')
+    playError()
     return
   }
 
   const target = currentPendingItem.value
   if (!target) {
     ElMessage.info('当前没有待拣货的拣货项')
+    playError()
     scanInput.value = ''
     return
   }
 
   if (!validateScan(value, target)) {
     ElMessage.error(`条码不匹配当前待拣项「${target.material}」，请重新扫描`)
+    playError()
     scanInput.value = ''
     return
   }

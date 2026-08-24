@@ -32,24 +32,15 @@
       </div>
 
       <el-table v-loading="isLoading" :data="tableData" border stripe>
-        <el-table-column prop="id" label="ID" width="70" align="center" />
         <el-table-column prop="username" label="用户名" min-width="120" />
         <el-table-column prop="nickname" label="昵称" min-width="120">
           <template #default="{ row }">
             {{ row.nickname || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="departmentId" label="部门ID" width="100" align="center">
+        <el-table-column label="部门" min-width="120" align="center">
           <template #default="{ row }">
-            {{ row.departmentId ?? '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="roles" label="角色" min-width="160">
-          <template #default="{ row }">
-            <el-tag v-for="role in row.roles || []" :key="role.id" size="small" class="mr-1">
-              {{ role.roleName }}
-            </el-tag>
-            <span v-if="!row.roles || row.roles.length === 0">-</span>
+            {{ (row as any).departmentName || row.departmentId || '-' }}
           </template>
         </el-table-column>
         <el-table-column label="状态" width="90" align="center">
@@ -63,6 +54,7 @@
         <el-table-column label="操作" width="300" align="center" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+            <el-button link type="primary" :icon="UserFilled" @click="handleAssignRole(row)">分配角色</el-button>
             <el-button
               link
               :type="row.status === 1 ? 'warning' : 'success'"
@@ -71,7 +63,6 @@
             >
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
-            <el-button link type="primary" :icon="UserFilled" @click="handleAssignRole(row)">分配角色</el-button>
             <el-button link type="warning" :icon="Key" @click="handleResetPwd(row)">重置密码</el-button>
             <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
           </template>
@@ -110,10 +101,10 @@
         <el-form-item label="昵称" prop="nickname">
           <el-input v-model="form.nickname" placeholder="请输入昵称（可选）" />
         </el-form-item>
-        <el-form-item label="部门ID" prop="departmentId">
+        <el-form-item label="部门" prop="departmentId">
           <el-input-number v-model="form.departmentId" :min="0" controls-position="right" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="初始角色" prop="roleIds" v-if="!isEdit">
+        <el-form-item v-if="!isEdit" label="初始角色" prop="roleIds">
           <el-select v-model="form.roleIds" multiple placeholder="请选择角色（可选）" style="width: 100%">
             <el-option v-for="role in roleOptions" :key="role.id" :label="role.roleName" :value="role.id" />
           </el-select>
@@ -132,7 +123,7 @@
           <span>{{ currentUser?.username }}</span>
         </el-form-item>
         <el-form-item label="角色">
-          <el-select v-model="assignRoleIds" multiple placeholder="请选择角色" style="width: 100%">
+          <el-select v-model="assignRoleIds" multiple placeholder="请选择角色（可多选）" style="width: 100%">
             <el-option v-for="role in roleOptions" :key="role.id" :label="role.roleName" :value="role.id" />
           </el-select>
         </el-form-item>
@@ -179,6 +170,7 @@ import {
 import type { UserCreateParams } from '@/api/user'
 import { getRoleList } from '@/api/role'
 import type { Role, User } from '@/types/user'
+import { playCorrect, playError } from '@/utils/sound'
 
 const query = reactive<{ username?: string; status?: number; page: number; pageSize: number }>({
   username: undefined,
@@ -238,6 +230,16 @@ const fetchData = async () => {
 const handleSearch = () => {
   query.page = 1
   fetchData()
+    .then(() => {
+      if (tableData.value.length === 0) {
+        playError()
+      } else {
+        playCorrect()
+      }
+    })
+    .catch(() => {
+      playError()
+    })
 }
 
 const handleReset = () => {

@@ -11,6 +11,7 @@ import {
   type RelocationRequest,
   type MaterialPositionInfo
 } from '@/api/inventory'
+import { playCorrect, playError } from '@/utils/sound'
 
 type RelocationMode = 'material' | 'location'
 
@@ -74,10 +75,10 @@ const toggleToLock = () => {
   }
 }
 
-/** 查询物料在各库位的库存并高亮原库位 */
+/** 查询物料在各库位的库存并高亮原库位（静默，不播放音效，由调用方控制） */
 const loadStock = async () => {
   const kw = materialCode.value.trim()
-  if (!kw) return
+  if (!kw) return false
 
   stockLoading.value = true
   try {
@@ -89,8 +90,10 @@ const loadStock = async () => {
     } else {
       ElMessage.success(`查询成功，该物料共 ${stockList.value.length} 个库位`)
     }
+    return true
   } catch {
     stockList.value = []
+    return false
   } finally {
     stockLoading.value = false
   }
@@ -98,11 +101,17 @@ const loadStock = async () => {
 
 /** 物料编码回车：查询库存，逐件模式直接提交，否则聚焦数量 */
 const handleMaterialEnter = async () => {
-  await loadStock()
+  const ok = await loadStock()
   if (isSingleMode.value) {
+    // 单件模式直接提交，音效由 handleRelocate 负责
     await handleRelocate()
   } else {
-    quantityInputRef.value?.focus()
+    if (ok) {
+      playCorrect()
+      quantityInputRef.value?.focus()
+    } else {
+      playError()
+    }
   }
 }
 
@@ -114,24 +123,29 @@ const handleRelocate = async () => {
 
   if (!from) {
     ElMessage.warning('请输入原库位')
+    playError()
     return
   }
   if (!to) {
     ElMessage.warning('请输入目标库位')
+    playError()
     return
   }
   if (from === to) {
     ElMessage.warning('原库位与目标库位不能相同')
+    playError()
     return
   }
   if (!material) {
     ElMessage.warning('请输入物料编码')
+    playError()
     return
   }
 
   const submitQty = isSingleMode.value ? 1 : quantity.value
   if (!isSingleMode.value && (!submitQty || submitQty <= 0)) {
     ElMessage.warning('请输入有效数量')
+    playError()
     return
   }
 
@@ -144,10 +158,12 @@ const handleRelocate = async () => {
 
   if (!stockRow) {
     ElMessage.error('原库位无该物料的库存记录，无法移库')
+    playError()
     return
   }
   if (submitQty! > stockRow.availableQuantity) {
     ElMessage.error(`原库位可用库存不足，当前可用 ${stockRow.availableQuantity} 件`)
+    playError()
     return
   }
 
@@ -162,6 +178,7 @@ const handleRelocate = async () => {
     isLoading.value = true
     await relocate(payload)
     ElMessage.success(`移库成功：${material} x ${submitQty}`)
+    playCorrect()
 
     // 成功后清空物料编码与数量，保留库位（除非未锁定则一并清空）
     materialCode.value = ''
@@ -181,6 +198,7 @@ const handleRelocate = async () => {
     materialInputRef.value?.focus()
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '移库失败，请稍后重试')
+    playError()
   } finally {
     isLoading.value = false
   }
@@ -193,14 +211,17 @@ const handleLocationReset = async () => {
 
   if (!from) {
     ElMessage.warning('请输入原库位')
+    playError()
     return
   }
   if (!to) {
     ElMessage.warning('请输入目标库位')
+    playError()
     return
   }
   if (from === to) {
     ElMessage.warning('原库位与目标库位不能相同')
+    playError()
     return
   }
 
@@ -223,12 +244,14 @@ const handleLocationReset = async () => {
     isResetLoading.value = true
     await locationReset(from, to)
     ElMessage.success(`库位重置成功：${from} → ${to}`)
+    playCorrect()
     resetFromPosition.value = ''
     resetToPosition.value = ''
     await nextTick()
     resetFromInputRef.value?.focus()
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || '库位重置失败，请稍后重试')
+    playError()
   } finally {
     isResetLoading.value = false
   }

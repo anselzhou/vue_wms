@@ -39,7 +39,16 @@ service.interceptors.response.use(
     if (!skipErrorMessage) {
       ElMessage.error(res.message || '请求失败')
     }
-    return Promise.reject(new Error(res.message || '请求失败'))
+    // 业务失败（HTTP 200 但 code !== 200）时，reject 的错误对象附加业务错误信息：
+    // - response.status 承载业务 code，使 error?.response?.status 的判断对业务错误同样有效
+    // - isBusinessError 标记业务失败，供调用方识别，避免在 catch 中误判为网络错误而重复提示
+    const businessError = new Error(res.message || '请求失败') as Error & {
+      response?: { status?: number; data?: unknown }
+      isBusinessError?: boolean
+    }
+    businessError.response = { status: res.code, data: res }
+    businessError.isBusinessError = true
+    return Promise.reject(businessError)
   },
   (error) => {
     // 401 未授权始终需要处理（清除登录态并跳转）

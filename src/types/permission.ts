@@ -2,7 +2,7 @@
  * 权限 / 角色相关类型（对应后端 Permission / OperationLog 实体）
  */
 
-export type PermType = 'menu' | 'button' | 'data'
+export type PermType = 'catalog' | 'menu' | 'button' | 'data'
 
 export interface Permission {
   id: number

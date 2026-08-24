@@ -94,6 +94,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { Refresh, Search } from '@element-plus/icons-vue'
 import { getOperationLogPage, type LogQuery } from '@/api/log'
 import type { OperationLog } from '@/types/permission'
+import { playCorrect, playError } from '@/utils/sound'
 
 const query = reactive<Required<Pick<LogQuery, 'page' | 'pageSize'>> & LogQuery>({
   username: undefined,
@@ -120,6 +121,16 @@ const fetchData = async () => {
 const handleSearch = () => {
   query.page = 1
   fetchData()
+    .then(() => {
+      if (tableData.value.length === 0) {
+        playError()
+      } else {
+        playCorrect()
+      }
+    })
+    .catch(() => {
+      playError()
+    })
 }
 
 const handleReset = () => {

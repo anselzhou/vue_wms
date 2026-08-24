@@ -1,12 +1,7 @@
 <template>
   <div class="login-container">
-    <!-- 动态背景装饰 -->
-    <div class="bg-decoration">
-      <div class="bg-orb bg-orb--1"></div>
-      <div class="bg-orb bg-orb--2"></div>
-      <div class="bg-orb bg-orb--3"></div>
-      <div class="bg-grid"></div>
-    </div>
+    <!-- 中国风水墨山水背景 -->
+    <ChineseLandscapeBackground />
 
     <div class="login-card-wrapper">
       <!-- Logo 和品牌信息 -->
@@ -119,6 +114,7 @@ import { User, Lock, View, Hide, Box } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import { ElMessage } from 'element-plus'
 import { login, getUserInfo } from '@/api/user'
+import ChineseLandscapeBackground from '@/components/ChineseLandscapeBackground.vue'
 
 interface LoginForm {
   username: string
@@ -210,20 +206,21 @@ const handleLogin = async () => {
     const redirect = (route.query.redirect as string) || '/dashboard'
     await router.push(redirect)
   } catch (error: any) {
-    // Only API / network errors reach this block now.
-    // Status-specific messages (e.g. 401) are already shown by the
-    // Axios response interceptor, so we only show a generic fallback.
-    const httpStatus = error?.response?.status
-    if (!httpStatus) {
-      // Network error or timeout — interceptor already shows a message,
-      // but we add context here.
-      if (error?.code === 'ECONNABORTED') {
-        ElMessage.error('请求超时，请检查网络连接')
-      } else if (!error?.response) {
-        ElMessage.error('网络错误，请检查网络连接')
-      } else {
-        ElMessage.error('登录失败，请检查用户名和密码')
-      }
+    // 业务错误（如密码错误）：拦截器已弹出具体提示（如「密码错误」），这里无需重复提示
+    if (error?.isBusinessError) {
+      return
+    }
+
+    // HTTP 状态错误（如 401/403）：拦截器已按状态码提示，这里无需重复提示
+    if (error?.response?.status) {
+      return
+    }
+
+    // 其余为网络/超时错误，补充上下文提示
+    if (error?.code === 'ECONNABORTED') {
+      ElMessage.error('请求超时，请检查网络连接')
+    } else {
+      ElMessage.error('网络错误，请检查网络连接')
     }
   } finally {
     isLoading.value = false
@@ -252,73 +249,11 @@ loadSavedCredentials()
   position: relative;
   min-height: 100vh;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, color-mix(in srgb, var(--wms-logo-from) 35%, transparent) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 85% 20%, color-mix(in srgb, var(--wms-logo-to) 30%, transparent) 0%, transparent 55%),
-    linear-gradient(135deg, var(--wms-logo-from) 0%, color-mix(in srgb, var(--wms-logo-from) 70%, var(--wms-logo-to) 30%) 50%, var(--wms-logo-to) 100%);
+  background: #f2f0e8;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
-}
-
-/* ===== 动态背景装饰 ===== */
-.bg-decoration {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.bg-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.55;
-  will-change: transform;
-  animation: orb-float 14s ease-in-out infinite;
-}
-
-.bg-orb--1 {
-  width: 420px;
-  height: 420px;
-  top: -120px;
-  left: -80px;
-  background: color-mix(in srgb, var(--wms-on-primary) 40%, transparent);
-}
-
-.bg-orb--2 {
-  width: 360px;
-  height: 360px;
-  bottom: -100px;
-  right: -60px;
-  background: color-mix(in srgb, var(--wms-primary) 60%, transparent);
-  animation-delay: -4s;
-}
-
-.bg-orb--3 {
-  width: 280px;
-  height: 280px;
-  top: 40%;
-  right: 12%;
-  background: color-mix(in srgb, var(--wms-on-primary) 25%, transparent);
-  animation-delay: -8s;
-}
-
-.bg-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(color-mix(in srgb, var(--wms-on-primary) 8%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--wms-on-primary) 8%, transparent) 1px, transparent 1px);
-  background-size: 56px 56px;
-  mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, rgba(0, 0, 0, 0.9) 0%, transparent 75%);
-}
-
-@keyframes orb-float {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -25px) scale(1.08); }
-  66% { transform: translate(-20px, 20px) scale(0.95); }
 }
 
 .login-card-wrapper {
@@ -334,11 +269,11 @@ loadSavedCredentials()
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 品牌区域 */
+/* 品牌区域 - 水墨深色文字 */
 .brand-section {
   text-align: center;
   margin-bottom: 32px;
-  color: var(--wms-on-primary);
+  color: #2b3531;
 }
 
 .brand-logo {
@@ -347,41 +282,44 @@ loadSavedCredentials()
 }
 
 .brand-icon {
-  background: color-mix(in srgb, var(--wms-on-primary) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--wms-on-primary) 30%, transparent);
+  background: rgba(255, 252, 244, 0.75);
+  border: 1px solid rgba(90, 100, 96, 0.35);
   border-radius: 20px;
   padding: 14px;
   backdrop-filter: blur(12px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  color: #2b3531;
   animation: logo-glow 3s ease-in-out infinite;
 }
 
 @keyframes logo-glow {
-  0%, 100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
-  50% { box-shadow: 0 8px 40px color-mix(in srgb, var(--wms-on-primary) 30%, transparent); }
+  0%, 100% { box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
+  50% { box-shadow: 0 8px 40px rgba(140, 110, 70, 0.25); }
 }
 
 .brand-title {
   font-size: 34px;
   font-weight: 700;
   margin: 0 0 8px 0;
-  letter-spacing: 1px;
-  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  letter-spacing: 2px;
+  color: #22302b;
+  text-shadow: 0 2px 12px rgba(255, 255, 255, 0.45);
 }
 
 .brand-subtitle {
   font-size: 16px;
   opacity: 0.92;
   margin: 0;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
+  color: #4a564f;
 }
 
-/* 登录卡片 - 玻璃拟态 */
+/* 登录卡片 - 宣纸质感 */
 .login-card {
-  background: color-mix(in srgb, var(--wms-surface) 82%, transparent);
-  border-radius: var(--wms-radius-lg);
-  border: 1px solid color-mix(in srgb, var(--wms-on-primary) 22%, transparent);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.24);
+  background: rgba(252, 249, 241, 0.92);
+  border-radius: 14px;
+  border: 1px solid rgba(120, 115, 100, 0.28);
+  box-shadow: 0 24px 56px rgba(40, 45, 40, 0.28);
   overflow: hidden;
   backdrop-filter: blur(20px) saturate(140%);
   -webkit-backdrop-filter: blur(20px) saturate(140%);
@@ -485,33 +423,34 @@ loadSavedCredentials()
   font-weight: 500;
 }
 
-/* 登录按钮 - 渐变悬浮效果 */
+/* 登录按钮 - 水墨朱砂渐变 */
 .login-button {
   width: 100%;
   height: 56px;
-  border-radius: var(--wms-radius);
+  border-radius: 10px;
   font-size: 16px;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 4px;
   border: none;
-  background: linear-gradient(135deg, var(--wms-primary) 0%, color-mix(in srgb, var(--wms-primary-hover) 60%, var(--wms-primary)) 100%);
+  color: #fdf9f0;
+  background: linear-gradient(135deg, #7a1f1a 0%, #a83228 55%, #c24a33 100%);
   transition: all 0.25s ease;
 }
 
 .login-button:hover {
-  background: linear-gradient(135deg, var(--wms-primary-hover) 0%, var(--wms-primary) 100%);
+  background: linear-gradient(135deg, #8f241e 0%, #bd3d2c 100%);
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--wms-primary) 40%, transparent);
+  box-shadow: 0 10px 24px rgba(120, 40, 30, 0.4);
 }
 
 .login-button:active {
   transform: translateY(0);
-  background: var(--wms-primary-active);
+  background: #6d1b16;
 }
 
 .login-button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wms-primary) 25%, transparent);
+  box-shadow: 0 0 0 3px rgba(168, 50, 40, 0.28);
 }
 
 /* 注册链接 */
@@ -543,10 +482,10 @@ loadSavedCredentials()
 /* 版权信息 */
 .copyright {
   text-align: center;
-  color: color-mix(in srgb, var(--wms-on-primary) 80%, transparent);
+  color: rgba(43, 53, 49, 0.82);
   font-size: 14px;
   margin-top: 24px;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  text-shadow: 0 1px 4px rgba(255, 255, 255, 0.4);
 }
 
 /* 响应式设计 */
@@ -578,10 +517,6 @@ loadSavedCredentials()
 
 /* 浅色下降低饱和装饰，避免干扰可读性 */
 @media (prefers-reduced-motion: reduce) {
-  .bg-orb {
-    animation: none;
-  }
-
   .brand-icon {
     animation: none;
   }

@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { getMaterialInfo } from '@/api/material'
 import { usePagination, PAGE_SIZE_OPTIONS } from '@/composables/usePagination'
+import { playCorrect, playError } from '@/utils/sound'
 
 interface MaterialInfo {
   material: string
@@ -37,8 +38,10 @@ const handleSearch = async () => {
     tableData.value = data as MaterialInfo[]
     if (tableData.value.length === 0) {
       ElMessage.info('未查询到物料信息')
+      playError()
     } else {
       ElMessage.success(`查询成功，共找到 ${tableData.value.length} 条记录`)
+      playCorrect()
     }
     resetPage()
   } catch (error) {
@@ -46,6 +49,7 @@ const handleSearch = async () => {
     // 优先展示后端返回的业务错误信息（如"未找到该物料信息"），网络等异常再回退到通用文案
     const message = (error as Error)?.message
     ElMessage.error(message || '查询物料信息失败，请稍后重试')
+    playError()
   } finally {
     loading.value = false
   }

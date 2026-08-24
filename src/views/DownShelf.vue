@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import ToggleLockButton from '@/components/ToggleLockButton.vue'
 import { relocate, queryMaterialStock, type MaterialPositionInfo } from '@/api/inventory'
+import { playCorrect, playError } from '@/utils/sound'
 
 /** 两段式下架：目标库位固定为「普通暂存位」 */
 const NORMAL_STAGING_POSITION = '普通暂存位'
@@ -44,19 +45,21 @@ const toggleLockPosition = () => {
   }
 }
 
-/** 查询该物料在来源库位的库存 */
+/** 查询该物料在来源库位的库存（静默，不播放音效，由调用方控制） */
 const loadSourceStock = async (material: string) => {
   sourceStock.value = null
   const pos = position.value.trim()
-  if (!material || !pos) return
+  if (!material || !pos) return false
 
   stockLoading.value = true
   try {
     const res = await queryMaterialStock(material)
     const list = Array.isArray(res?.data) ? (res.data as MaterialPositionInfo[]) : []
     sourceStock.value = list.find(r => r.position === pos) ?? null
+    return true
   } catch {
     sourceStock.value = null
+    return false
   } finally {
     stockLoading.value = false
   }
@@ -66,21 +69,29 @@ const loadSourceStock = async (material: string) => {
 const handleMaterialEnter = async () => {
   const material = materialCode.value.trim()
   if (!material) {
+    playError()
     materialInputRef.value?.focus()
     return
   }
   if (!position.value.trim()) {
     ElMessage.warning('请输入来源库位')
+    playError()
     positionInputRef.value?.focus()
     return
   }
-  await loadSourceStock(material)
+  const ok = await loadSourceStock(material)
   if (isSingleMode.value) {
+    // 单件模式直接下架，音效由 handleSubmit 负责
     await handleSubmit()
   } else {
-    // 非逐件模式聚焦数量输入
-    const qtyInput = document.querySelector<HTMLInputElement>('.downshelf-qty input')
-    qtyInput?.focus()
+    if (ok) {
+      playCorrect()
+      // 非逐件模式聚焦数量输入
+      const qtyInput = document.querySelector<HTMLInputElement>('.downshelf-qty input')
+      qtyInput?.focus()
+    } else {
+      playError()
+    }
   }
 }
 
@@ -89,16 +100,19 @@ const handleSubmit = async () => {
   const pos = position.value.trim()
   if (!pos) {
     ElMessage.warning('请输入来源库位')
+    playError()
     return
   }
   if (pos === NORMAL_STAGING_POSITION) {
     ElMessage.warning('来源库位不能是「普通暂存位」，请选择正式库位')
+    playError()
     return
   }
 
   const material = materialCode.value.trim()
   if (!material) {
     ElMessage.warning('请输入物料编码')
+    playError()
     return
   }
 
@@ -106,6 +120,7 @@ const handleSubmit = async () => {
   const submitQty = isSingleMode.value ? 1 : quantity.value
   if (!isSingleMode.value && (!submitQty || submitQty <= 0)) {
     ElMessage.warning('请输入有效数量')
+    playError()
     return
   }
 
@@ -119,10 +134,12 @@ const handleSubmit = async () => {
   }
   if (!sourceStock.value) {
     ElMessage.error(`「${pos}」无该物料的库存记录，无法下架`)
+    playError()
     return
   }
   if (submitQty! > sourceAvailable.value) {
     ElMessage.error(`「${pos}」可用库存不足，当前可用 ${sourceAvailable.value} 件`)
+    playError()
     return
   }
 
@@ -136,6 +153,7 @@ const handleSubmit = async () => {
       quantity: submitQty!
     })
     ElMessage.success(`下架成功：${material} x ${submitQty} → ${NORMAL_STAGING_POSITION}`)
+    playCorrect()
     // 下架成功后清空物料编码与来源库存缓存
     materialCode.value = ''
     sourceStock.value = null
@@ -152,6 +170,7 @@ const handleSubmit = async () => {
     materialInputRef.value?.focus()
   } catch (error: any) {
     ElMessage.error(error?.response?.data?.message || error?.message || '下架失败，请稍后重试')
+    playError()
   } finally {
     isLoading.value = false
   }

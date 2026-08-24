@@ -4,6 +4,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh, Search } from '@element-plus/icons-vue'
 import { getOutboundList, type OutboundRecord } from '@/api/outbound'
 import { usePagination, PAGE_SIZE_OPTIONS } from '@/composables/usePagination'
+import { playCorrect, playError } from '@/utils/sound'
 
 const loading = ref(false)
 const records = ref<OutboundRecord[]>([])
@@ -53,6 +54,17 @@ const loadRecords = async () => {
 
 const handleSearch = () => {
   resetPage()
+  const kw = keyword.value.trim()
+  if (!kw) {
+    // 空关键字：等价于展示全部记录
+    playCorrect()
+    return
+  }
+  if (filteredRecords.value.length === 0) {
+    playError()
+  } else {
+    playCorrect()
+  }
 }
 
 const handleReset = () => {

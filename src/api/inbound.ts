@@ -159,3 +159,64 @@ export function putAway(data: {
   ]
   return insertBatch(items)
 }
+
+// ============================================================
+// 按订单入库核对（对应后端 InboundOrder / Inventory 模块）
+// ============================================================
+
+/** GET /inbound/items/{orderId} — 根据订单 ID 查询入库单明细 */
+export function getInboundOrderItems(orderId: number): Promise<ApiResult<InboundOrderItemResponse[]>> {
+  return request({
+    url: `/inbound/items/${orderId}`,
+    method: 'get'
+  }) as Promise<ApiResult<InboundOrderItemResponse[]>>
+}
+
+/** 入库核对结果明细项（前端计算后提交） */
+export interface InboundCheckItemPayload {
+  /** 明细 ID */
+  itemId: number
+  /** 物料编码 */
+  material: string
+  /** EAN 码 */
+  ean: string
+  /** 计划入库数量 */
+  plannedQuantity: number
+  /** 实际入库数量（不一致时为 0） */
+  actualQuantity: number
+  /** 核对结果：MATCHED 一致 / DIFF 差异 */
+  checkResult: 'MATCHED' | 'DIFF'
+  /** 差异说明（checkResult = DIFF 时必填） */
+  diffDescription?: string
+}
+
+/** 入库差异报告项 */
+export interface InboundDiffReportItem {
+  /** 订单编码 */
+  orderNo: string
+  /** 不一致的物料编码 */
+  material: string
+  /** 差异说明 */
+  diffDescription: string
+}
+
+/** 提交入库核对结果 — 请求体 */
+export interface InboundCheckSubmitRequest {
+  /** 订单 ID */
+  orderId: number
+  /** 订单编码 */
+  orderNo: string
+  /** 各明细核对结果 */
+  items: InboundCheckItemPayload[]
+  /** 差异报告（不一致物料 + 未匹配物料） */
+  diffReport: InboundDiffReportItem[]
+}
+
+/** POST /inbound/check/submit — 提交入库核对结果（含差异报告保存） */
+export function submitInboundCheck(data: InboundCheckSubmitRequest): Promise<ApiResult<string>> {
+  return request({
+    url: '/inbound/check/submit',
+    method: 'post',
+    data
+  }) as Promise<ApiResult<string>>
+}

@@ -12,6 +12,12 @@ declare module 'vue-router' {
     hidden?: boolean
     /** 侧边栏排序，越小越靠前 */
     order?: number
+    /**
+     * 访问/显示该页面所需的权限编码（任一匹配即可）
+     * - 未配置：登录即可访问/显示
+     * - 超级管理员（ADMIN 角色）始终放行
+     */
+    perms?: string[]
   }
 }
 

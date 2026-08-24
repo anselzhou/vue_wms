@@ -72,7 +72,7 @@
       <el-dropdown trigger="click" @command="handleCommand">
         <div class="user-profile">
           <el-avatar :size="36" icon="UserFilled" />
-          <span class="username">管理员</span>
+          <span class="username">{{ displayName }}</span>
           <el-icon class="el-icon--right"><ArrowDown /></el-icon>
         </div>
         <template #dropdown>
@@ -120,10 +120,17 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useTheme, type ThemeName } from '@/composables/useTheme'
 import { logout } from '@/api/user'
+import { getUserInfo } from '@/utils/setUserInfo'
 
 const router = useRouter()
 const route = useRoute()
 const { theme, themeOptions, setTheme } = useTheme()
+
+/** 顶部导航栏展示的用户名：优先昵称，其次用户名 */
+const displayName = computed(() => {
+  const user = getUserInfo()
+  return user?.nickname || user?.username || '用户'
+})
 
 const emit = defineEmits<{
   (e: 'toggle-sidebar'): void

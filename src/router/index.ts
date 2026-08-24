@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { constantRoutes } from './routes'
+import { hasPermission } from '@/utils/permission'
 
 export { constantRoutes } from './routes'
 
@@ -46,6 +47,19 @@ router.beforeEach((to) => {
 
   if (WHITE_LIST.has(to.path) && isAuthenticated()) {
     return '/dashboard'
+  }
+
+  // 已登录且非白名单：校验当前路由的菜单权限
+  if (requiresAuth && isAuthenticated()) {
+    // 逐级校验：父路由（如系统管理）与当前路由（如用户管理）的权限均需满足
+    const matched = [...to.matched]
+    // 忽略 Layout 根记录（无 perms）
+    for (const record of matched) {
+      if (record.meta?.perms && !hasPermission(record.meta.perms)) {
+        // 已登录但无权限 → 重定向到 403（Layout 内部版本，保留导航栏/侧边栏）
+        return { path: '/403', replace: true }
+      }
+    }
   }
 
   return true
